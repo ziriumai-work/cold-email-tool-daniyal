@@ -8,4 +8,3 @@ data/*.db
 dist-app/
 electron/app.config.json
 cookies.txt
-danial/
