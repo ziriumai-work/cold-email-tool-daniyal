@@ -1,0 +1,12 @@
+.git
+.gitignore
+README.md
+.env.local
+.env.*.local
+node_modules
+*.log
+.DS_Store
+.vercel
+electron/
+scripts/test-*.mjs
+check-tracking.mjs

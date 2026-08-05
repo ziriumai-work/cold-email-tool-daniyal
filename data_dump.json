@@ -1,0 +1,57 @@
+{
+  "companies": [
+    {
+      "id": 3,
+      "name": "kabulrugs",
+      "website": "www.kabulrugs.com",
+      "contact_email": "ehsanwali72@gmail.com",
+      "phone": null,
+      "all_emails": null,
+      "created_at": "2026-07-08 10:35:34"
+    }
+  ],
+  "drafts": [
+    {
+      "id": 3,
+      "company_id": 3,
+      "subject": "Rug catalog questions",
+      "body": "Hi,\n\nYour site lists 972 handwoven rugs, many over Rs. 80,000, yet has no live chat or assistant to answer buyer questions. Visitors who need reassurance on authenticity, size, or care likely leave without buying.\n\nWe build AI product-expert chatbots that learn your full catalog, material, origin, dimensions, and answer those questions 24/7, matching buyers to the right rug. More queries convert without adding headcount.\n\nOpen to seeing how it would work on one of your higher-priced pieces?",
+      "research_summary": "HOOK: Your site lists 972 handwoven rugs, many over Rs. 80,000, yet has no live chat or assistant to answer buyer questions.\n\nPROBLEM: Visitors who need reassurance on authenticity, size, or care likely leave without buying\u2014dollars lost every hour.\n\nPROJECT: Deploy an AI product-expert chatbot that learns your rug catalog (material, origin, dimensions) and answers questions 24/7, matching buyers to the right rug.\n\nOUTCOME: More queries convert to sales, especially on high-ticket items, without adding headcount.",
+      "offer": "software develpment",
+      "status": "replied",
+      "error": null,
+      "sent_at": "2026-07-08 10:36:29",
+      "scheduled_at": null,
+      "scheduled_tz": null,
+      "message_id": "<d9f442e8-1f6b-26e3-69f4-63f56481a3c7@ziriumai.com>",
+      "sender_key": "wahaj",
+      "sender_name": "Wahaj",
+      "sender_email": "wahaj.s@ziriumai.com",
+      "replied_at": "2026-07-08 10:37:25",
+      "created_at": "2026-07-08 10:36:13",
+      "tracking_id": "7fe0d1b5-d2e5-4e02-bfb5-e63c591ec949",
+      "opened_at": "2026-07-08 10:43:09",
+      "open_count": 1,
+      "last_opened_at": "2026-07-08 10:43:09",
+      "clicked_at": "2026-07-08 10:43:09",
+      "click_count": 1,
+      "last_clicked_at": "2026-07-08 10:43:09"
+    }
+  ],
+  "replies": [
+    {
+      "id": 1,
+      "draft_id": 3,
+      "company_id": 3,
+      "from_email": "ehsanwali72@gmail.com",
+      "subject": "Re: Rug catalog questions",
+      "snippet": "",
+      "imap_message_id": "<CAJe07UtofhtsTa381a46GptVfkRimqyjkC62_4yK2mxG=z0ZnA@mail.gmail.com>",
+      "status": "new",
+      "notes": null,
+      "received_at": "2026-07-08 10:36:58",
+      "created_at": "2026-07-08 10:37:25"
+    }
+  ],
+  "settings": []
+}

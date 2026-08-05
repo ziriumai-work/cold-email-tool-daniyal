@@ -1,0 +1,55 @@
+{
+  "name": "cold-email-tool",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "standalone": "next build && node scripts/prepare-standalone.mjs",
+    "electron": "npm run standalone && electron .",
+    "dist": "npm run standalone && electron-builder --win --publish never",
+    "test:smtp": "node scripts/test-smtp.mjs",
+    "test:deepseek": "node scripts/test-deepseek.mjs",
+    "test:gen": "node scripts/test-gen.mjs"
+  },
+  "build": {
+    "appId": "ai.zirium.coldemail",
+    "productName": "Cold Email Tool",
+    "asar": false,
+    "files": [
+      "electron/**",
+      ".next/standalone/**",
+      "public/**",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist-app"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "differentialPackage": false
+    }
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.4",
+    "cheerio": "^1.0.0",
+    "imapflow": "^1.4.2",
+    "next": "^16.2.9",
+    "nodemailer": "^6.9.16",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.7",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3"
+  }
+}
