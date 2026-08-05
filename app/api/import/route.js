@@ -40,22 +40,25 @@ export async function POST(req) {
       return Response.json({ error: 'No valid company data rows could be extracted from this file.' }, { status: 400 });
     }
 
-    let imported = 0;
+    const toInsert = [];
     const skipped = [];
     for (const r of rows) {
       const canonical = canonicalizeRow(r);
       const name = (canonical.name || '').trim();
       if (!name) { skipped.push(r); continue; }
-      await run(
-        'INSERT INTO companies (name, website, contact_email, phone) VALUES (?, ?, ?, ?)',
-        [
-          name,
-          (canonical.website || '').trim() || null,
-          (canonical.contact_email || '').trim() || null,
-          (canonical.phone || '').trim() || null,
-        ]
-      );
-      imported++;
+      toInsert.push({
+        name,
+        website: (canonical.website || '').trim() || null,
+        contact_email: (canonical.contact_email || '').trim() || null,
+        phone: (canonical.phone || '').trim() || null,
+      });
+    }
+
+    let imported = 0;
+    if (toInsert.length > 0) {
+      const { runBulkInsert } = await import('../../../lib/db.js');
+      const res = await runBulkInsert('companies', toInsert);
+      imported = res.rowsAffected || toInsert.length;
     }
 
     return Response.json({
