@@ -5,13 +5,22 @@ export const runtime = 'nodejs';
 
 // List drafts joined with their company.
 export async function GET() {
+  // Auto-heal any drafts that were sent but whose status was not set to 'sent'
+  try {
+    await run("UPDATE drafts SET status = 'sent' WHERE (sent_at IS NOT NULL OR message_id IS NOT NULL) AND status NOT IN ('sent', 'replied')");
+  } catch {}
+
   const drafts = await all('SELECT * FROM drafts ORDER BY id DESC');
   const companies = await all('SELECT id, name AS company_name, website, contact_email FROM companies');
   const companyById = new Map(companies.map((c) => [String(c.id), c]));
   const rows = drafts.map((draft) => {
     const company = companyById.get(String(draft.company_id));
+    const isSent = draft.status === 'sent' || !!draft.sent_at || !!draft.message_id;
+    const isReplied = draft.status === 'replied' || !!draft.replied_at;
+    const normalizedStatus = isReplied ? 'replied' : isSent ? 'sent' : draft.status;
     return {
       ...draft,
+      status: normalizedStatus,
       company_name: company?.company_name ?? null,
       website: company?.website ?? null,
       contact_email: company?.contact_email ?? null,

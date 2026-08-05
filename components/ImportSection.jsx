@@ -62,7 +62,7 @@ export function ImportSection({ busy, setBusy, csvInfo, setCsvInfo, flash, load 
         total: res.total,
         state: 'done',
       });
-      flash(`Successfully imported ${res.imported} compan${res.imported === 1 ? 'y' : 'ies'} from "${file.name}"${res.skipped ? `, ${res.skipped} skipped (missing name)` : ''}.`);
+      flash(`Successfully imported ${res.imported} lead${res.imported === 1 ? '' : 's'} from "${file.name}"${res.skipped ? `, ${res.skipped} skipped (missing email or name)` : ''}.`);
       load();
     } catch (err) {
       setBusy('');

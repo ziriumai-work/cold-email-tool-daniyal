@@ -40,18 +40,34 @@ export async function POST(req) {
       return Response.json({ error: 'No valid company data rows could be extracted from this file.' }, { status: 400 });
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const toInsert = [];
     const skipped = [];
     for (const r of rows) {
       const canonical = canonicalizeRow(r);
       const name = (canonical.name || '').trim();
-      if (!name) { skipped.push(r); continue; }
+      const contact_email = (canonical.contact_email || '').trim().toLowerCase();
+
+      // Email Filter Guardrail: Require a valid contact_email for every uploaded lead
+      if (!name || !contact_email || !emailRegex.test(contact_email)) {
+        skipped.push({ row: r, reason: !contact_email ? 'missing email' : !name ? 'missing name' : 'invalid email format' });
+        continue;
+      }
+
       toInsert.push({
         name,
         website: (canonical.website || '').trim() || null,
-        contact_email: (canonical.contact_email || '').trim() || null,
+        contact_email,
         phone: (canonical.phone || '').trim() || null,
       });
+    }
+
+    if (toInsert.length === 0) {
+      return Response.json({
+        error: `No leads with valid email addresses found in "${fileName}". All imported leads must include a contact email address. (${skipped.length} row(s) filtered out).`,
+        skipped: skipped.length,
+        total: rows.length,
+      }, { status: 400 });
     }
 
     let imported = 0;

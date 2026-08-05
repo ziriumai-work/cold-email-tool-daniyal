@@ -251,6 +251,13 @@ export default function Dashboard() {
     }).then((r) => r.json());
     if (res.error) return flash(res.error, false);
     setDrafts((ds) => ds.map((d) => (d.id === id ? res.draft : d)));
+    if (patch.status === 'rejected') {
+      flash('Email draft rejected.', 'delete');
+    } else if (patch.status === 'approved') {
+      flash('Email draft approved successfully!', 'success');
+    } else if (patch.subject !== undefined || patch.body !== undefined) {
+      flash('Draft changes saved successfully.', 'success');
+    }
     load();
   }
 
@@ -263,7 +270,8 @@ export default function Dashboard() {
     setBusy('');
     if (res.error) { flash(res.error, false); await load(); return false; }
     setDrafts((ds) => ds.map((d) => (d.id === draftId ? res.draft : d)));
-    flash('Email sent.');
+    const recipient = res.draft?.contact_email ? ` to ${res.draft.contact_email}` : '';
+    flash(`Email sent successfully${recipient}!`, 'success');
     load();
     return true;
   }
@@ -275,7 +283,8 @@ export default function Dashboard() {
     }).then((r) => r.json());
     if (res.error) return flash(res.error, false);
     setDrafts((ds) => ds.map((d) => (d.id === id ? res.draft : d)));
-    flash('Scheduled.');
+    const recipient = res.draft?.contact_email ? ` to ${res.draft.contact_email}` : '';
+    flash(`Email scheduled successfully${recipient}!`, 'success');
     load();
   }
 
@@ -286,7 +295,7 @@ export default function Dashboard() {
     }).then((r) => r.json());
     if (res.error) return flash(res.error, false);
     setDrafts((ds) => ds.map((d) => (d.id === id ? res.draft : d)));
-    flash('Schedule cancelled');
+    flash('Email schedule cancelled.');
     load();
   }
 

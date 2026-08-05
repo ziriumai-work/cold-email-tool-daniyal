@@ -62,7 +62,12 @@ export function DraftsSection({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', gap: 6, overflowX: 'auto', flexWrap: 'wrap' }}>
               {['all', 'pending', 'approved', 'scheduled', 'sent', 'replied', 'rejected', 'error'].map((f) => {
-                const n = f === 'all' ? drafts.length : drafts.filter((d) => d.status === f).length;
+                const n = f === 'all' ? drafts.length : drafts.filter((d) => {
+                  const isSent = d.status === 'sent' || !!d.sent_at || !!d.message_id;
+                  const isReplied = d.status === 'replied' || !!d.replied_at;
+                  const eff = isReplied ? 'replied' : isSent ? 'sent' : d.status;
+                  return eff === f;
+                }).length;
                 const active = filter === f;
                 return (
                   <button key={f} onClick={() => setFilter(f)}
@@ -95,7 +100,13 @@ export function DraftsSection({
           {(() => {
             const q = search.trim().toLowerCase();
             const filteredSorted = [...drafts]
-              .filter((d) => filter === 'all' || d.status === filter)
+              .filter((d) => {
+                if (filter === 'all') return true;
+                const isSent = d.status === 'sent' || !!d.sent_at || !!d.message_id;
+                const isReplied = d.status === 'replied' || !!d.replied_at;
+                const eff = isReplied ? 'replied' : isSent ? 'sent' : d.status;
+                return eff === filter;
+              })
               .filter((d) => !q || `${d.company_name} ${d.subject || ''} ${d.contact_email || ''}`.toLowerCase().includes(q))
               .sort((a, b) => b.id - a.id);
 

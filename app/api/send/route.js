@@ -38,6 +38,7 @@ export async function POST(req) {
         senderEmail: draft.sender_email,
         draftId,
       });
+      await run("UPDATE drafts SET status = 'sent', sent_at = datetime('now'), message_id = ?, error = NULL WHERE id = ?", [res.messageId || null, draftId]);
       const updatedDraft = await get('SELECT * FROM drafts WHERE id = ?', [draftId]);
       const fullDraft = {
         ...updatedDraft,

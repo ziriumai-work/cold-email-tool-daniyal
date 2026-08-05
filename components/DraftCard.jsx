@@ -17,7 +17,10 @@ export function DraftCard({ d, senders, replies = [], onUpdate, onSend, onSchedu
   }, [d.id, d.subject, d.body, d.sender_key]);
 
   const dirty = subject !== d.subject || body !== d.body || draftSenderKey !== (d.sender_key || '');
-  const locked = d.status === 'sent';
+  const isSent = d.status === 'sent' || !!d.sent_at || !!d.message_id;
+  const isReplied = d.status === 'replied' || !!d.replied_at;
+  const effectiveStatus = isReplied ? 'replied' : isSent ? 'sent' : d.status;
+  const locked = isSent || isReplied;
   const scheduled = d.status === 'scheduled';
   const editLocked = locked || scheduled;
   const tzLabel = (US_TZS.find((t) => t[0] === d.scheduled_tz) || [, ''])[1];
@@ -41,7 +44,7 @@ export function DraftCard({ d, senders, replies = [], onUpdate, onSend, onSchedu
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <strong style={{ color: C.ink, fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em' }}>{d.company_name}</strong>
-            <Badge color={statusColor[d.status] || C.sub}>{statusLabel[d.status] || d.status}</Badge>
+            <Badge color={statusColor[effectiveStatus] || C.sub}>{statusLabel[effectiveStatus] || effectiveStatus}</Badge>
           </div>
           <div style={{ color: C.sub, fontSize: 13, marginTop: 4, fontWeight: 500 }}>
             Recipient: <strong>{d.contact_email || 'No contact email'}</strong>
@@ -243,10 +246,37 @@ export function DraftCard({ d, senders, replies = [], onUpdate, onSend, onSchedu
       {/* Action Toolbar */}
       <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         {locked ? (
-          <span style={{ color: C.green, fontSize: 14, fontWeight: 750, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div style={{
+            background: 'rgba(236, 253, 245, 0.25)',
+            border: '1px solid rgba(167, 243, 208, 0.5)',
+            color: C.green,
+            borderRadius: 16,
+            padding: '10px 18px',
+            fontSize: 14,
+            fontWeight: 750,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8
+          }}>
             <CheckCircleIcon size={18} color={C.green} />
-            Email Sent Successfully
-          </span>
+            Email Sent Successfully{d.contact_email ? ` to ${d.contact_email}` : ''}
+          </div>
+        ) : d.status === 'rejected' ? (
+          <div style={{
+            background: 'rgba(254, 242, 242, 0.25)',
+            border: `1px solid ${C.red}44`,
+            color: C.red,
+            borderRadius: 16,
+            padding: '10px 18px',
+            fontSize: 14,
+            fontWeight: 750,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8
+          }}>
+            <TrashIcon size={16} color={C.red} />
+            Draft Rejected
+          </div>
         ) : scheduled ? (
           <>
             <button style={{ ...btn(C.green), display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={sending} onClick={() => onSend(d.id)}>
