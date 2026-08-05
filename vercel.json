@@ -3,7 +3,6 @@
   "devCommand": "next dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "maxDuration": 60,
   "regions": ["iad1"],
   "crons": [
     { "path": "/api/cron/send", "schedule": "*/5 * * * *" },
