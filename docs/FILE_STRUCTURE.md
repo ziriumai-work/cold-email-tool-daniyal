@@ -6,7 +6,7 @@ This document explains what each major folder and file is responsible for in one
 
 - package.json defines the Next.js, Electron, and script entry points for development, build, packaging, and testing.
 - next.config.mjs configures Next.js runtime behavior and build settings for the app.
-- middleware.js protects routes with a shared password when authentication is enabled.
+- proxy.js protects routes with a shared password when authentication is enabled.
 - instrumentation.js starts the background scheduler when the Node runtime is active.
 - vercel.json defines Vercel cron jobs for scheduled sends and reply polling.
 - DEPLOY.md contains deployment steps for Vercel and the required environment variables.

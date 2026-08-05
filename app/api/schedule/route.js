@@ -26,7 +26,13 @@ export async function POST(req) {
       [utc, tz || null, id]);
 
     const draft = await get('SELECT * FROM drafts WHERE id = ?', [id]);
-    return Response.json({ draft });
+    const fullDraft = {
+      ...draft,
+      company_name: company?.name ?? null,
+      website: company?.website ?? null,
+      contact_email: company?.contact_email ?? null,
+    };
+    return Response.json({ draft: fullDraft });
   } catch (e) {
     return Response.json({ error: String(e.message || e) }, { status: 500 });
   }
@@ -40,7 +46,14 @@ export async function DELETE(req) {
     await run("UPDATE drafts SET status = 'approved', scheduled_at = NULL, scheduled_tz = NULL WHERE id = ? AND status = 'scheduled'",
       [id]);
     const draft = await get('SELECT * FROM drafts WHERE id = ?', [id]);
-    return Response.json({ draft });
+    const company = draft?.company_id ? await get('SELECT name, website, contact_email FROM companies WHERE id = ?', [draft.company_id]) : null;
+    const fullDraft = {
+      ...draft,
+      company_name: company?.name ?? null,
+      website: company?.website ?? null,
+      contact_email: company?.contact_email ?? null,
+    };
+    return Response.json({ draft: fullDraft });
   } catch (e) {
     return Response.json({ error: String(e.message || e) }, { status: 500 });
   }

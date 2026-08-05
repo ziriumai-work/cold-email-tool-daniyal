@@ -4,13 +4,14 @@ import { findSender } from '../../../lib/senders.js';
 
 export const runtime = 'nodejs';
 
-const KEYS = ['sig_name', 'sig_title', 'sig_tagline', 'sig_website', 'sig_logo'];
+const KEYS = ['sig_name', 'sig_title', 'sig_tagline', 'sig_website', 'sig_logo', 'sig_calendly'];
 const FIELDS = [
   ['sig_name', 'name'],
   ['sig_title', 'title'],
   ['sig_tagline', 'tagline'],
   ['sig_website', 'website'],
   ['sig_logo', 'logo'],
+  ['sig_calendly', 'calendly'],
 ];
 
 function senderFromReq(req, body = {}) {

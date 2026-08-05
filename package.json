@@ -40,12 +40,16 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
+    "@supabase/supabase-js": "^2.112.0",
     "cheerio": "^1.0.0",
     "imapflow": "^1.4.2",
+    "mammoth": "^1.12.0",
     "next": "^16.2.9",
     "nodemailer": "^6.9.16",
+    "pdf-parse": "^1.1.1",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "dotenv": "^16.4.7",

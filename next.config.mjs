@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  allowedDevOrigins: ['192.168.1.251'],
   // Produces .next/standalone/server.js — a minimal self-contained server we
   // can bundle inside the Electron desktop app.
   output: 'standalone',
@@ -9,3 +10,4 @@ const nextConfig = {
 };
 
 export default nextConfig;
+

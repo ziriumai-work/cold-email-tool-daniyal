@@ -1,3 +1,5 @@
+import { getSetting, setSetting } from '../../../lib/settings.js';
+
 export const runtime = 'nodejs';
 
 const COOKIE = 'session';
@@ -8,21 +10,44 @@ function cookie(value, maxAge) {
   return `${COOKIE}=${value}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
-// Is auth enabled? (used to show/hide the Log out button)
+// Is auth enabled & initialized in database?
 export async function GET() {
-  return Response.json({ enabled: !!process.env.APP_PASSWORD });
+  try {
+    const dbPassword = await getSetting('app_password');
+    const enabled = !!(dbPassword || process.env.APP_PASSWORD);
+    return Response.json({ enabled, hasDbPassword: !!dbPassword });
+  } catch {
+    return Response.json({ enabled: !!process.env.APP_PASSWORD, hasDbPassword: false });
+  }
 }
 
-// Log in with the shared team password.
+// Log in with password verified against database.
 export async function POST(req) {
-  if (!process.env.APP_PASSWORD) {
-    return Response.json({ error: 'Auth is not configured (APP_PASSWORD not set).' }, { status: 500 });
-  }
   let password = '';
   try { ({ password } = await req.json()); } catch {}
-  if (password !== process.env.APP_PASSWORD) {
+
+  let dbPassword = null;
+  try {
+    dbPassword = await getSetting('app_password');
+  } catch {}
+
+  const validPassword = dbPassword || process.env.APP_PASSWORD;
+
+  if (!validPassword) {
+    if (password) {
+      await setSetting('app_password', password);
+    } else {
+      return Response.json({ error: 'Please enter a password to access the database and dashboard.' }, { status: 400 });
+    }
+  } else if (password !== validPassword) {
     return Response.json({ error: 'Incorrect password.' }, { status: 401 });
   }
+
+  // Ensure initial environment password is persisted to database settings
+  if (!dbPassword && password) {
+    try { await setSetting('app_password', password); } catch {}
+  }
+
   const res = Response.json({ ok: true });
   res.headers.append('Set-Cookie', cookie(process.env.SESSION_SECRET || 'ok', MAX_AGE));
   return res;

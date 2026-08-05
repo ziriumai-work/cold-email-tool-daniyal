@@ -20,6 +20,18 @@ export async function GET() {
   return Response.json({ drafts: rows });
 }
 
+async function getDraftWithCompany(id) {
+  const draft = await get('SELECT * FROM drafts WHERE id = ?', [id]);
+  if (!draft) return null;
+  const company = draft.company_id ? await get('SELECT id, name AS company_name, website, contact_email FROM companies WHERE id = ?', [draft.company_id]) : null;
+  return {
+    ...draft,
+    company_name: company?.company_name ?? null,
+    website: company?.website ?? null,
+    contact_email: company?.contact_email ?? null,
+  };
+}
+
 // Edit a draft's subject/body or change its status (approve/reject).
 // Body: { id, subject?, body?, status?, senderKey? }
 export async function PATCH(req) {
@@ -42,7 +54,7 @@ export async function PATCH(req) {
       sender ? sender.email : existing.sender_email,
       id,
     ]);
-    const draft = await get('SELECT * FROM drafts WHERE id = ?', [id]);
+    const draft = await getDraftWithCompany(id);
     return Response.json({ draft });
   } catch (e) {
     return Response.json({ error: String(e.message || e) }, { status: 500 });

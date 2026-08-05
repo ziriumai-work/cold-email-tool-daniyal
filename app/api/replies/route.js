@@ -13,6 +13,8 @@ export async function GET() {
   const draftById = new Map(drafts.map((d) => [d.id, d.subject]));
   const rows = replies.map((reply) => ({
     ...reply,
+    response: reply.snippet || reply.response || '',
+    body: reply.snippet || reply.body || '',
     company_name: companyById.get(reply.company_id) || null,
     draft_subject: draftById.get(reply.draft_id) || null,
   }));
