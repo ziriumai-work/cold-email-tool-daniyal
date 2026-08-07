@@ -26,6 +26,7 @@ import { RepliesSection } from '../components/RepliesSection.jsx';
 export default function Dashboard() {
   const [offer, setOffer] = useState('');
   const [customPrompt, setCustomPrompt] = useState('');
+  const [customSubject, setCustomSubject] = useState('');
   const [sig, setSig] = useState({ sig_name: '', sig_title: '', sig_tagline: '', sig_website: '', sig_logo: '', sig_calendly: '' });
   const [sigSaved, setSigSaved] = useState('{}');
   const [authEnabled, setAuthEnabled] = useState(false);
@@ -101,6 +102,7 @@ export default function Dashboard() {
   useEffect(() => {
     setOffer(localStorage.getItem('offer') || '');
     setCustomPrompt(localStorage.getItem('customPrompt') || '');
+    setCustomSubject(localStorage.getItem('customSubject') || '');
     fetch('/api/senders').then((r) => r.json()).then((s) => {
       const list = s.senders || [];
       setSenders(list);
@@ -144,24 +146,35 @@ export default function Dashboard() {
 
   useEffect(() => { localStorage.setItem('offer', offer); }, [offer]);
   useEffect(() => { localStorage.setItem('customPrompt', customPrompt); }, [customPrompt]);
+  useEffect(() => { localStorage.setItem('customSubject', customSubject); }, [customSubject]);
 
   function invalidFor() {
-    return !customPrompt.trim() && 'Write your custom email prompt first.';
+    return !customPrompt.trim() && 'Please enter your email text or prompt first.';
   }
 
   function payloadFor(companyId) {
-    return { companyId, mode: 'custom', customPrompt, senderKey };
+    return { companyId, mode: 'custom', customPrompt, customSubject, senderKey };
   }
 
   function openGen(target) { setModal({ mode: 'custom', target }); }
 
-  async function runModal() {
+  async function runModal(opts = {}) {
     const { target } = modal;
+    const mode = opts.mode || 'ai';
+    const autoSend = !!opts.autoSend;
+
     const bad = invalidFor();
     if (bad) return flash(bad, false);
+
     setModal(null);
-    if (target === 'all') await generateAll();
-    else await generateOne(target);
+
+    if (mode === 'exact') {
+      if (target === 'all') await generateExactAll({ autoSend });
+      else await generateExactOne(target, { autoSend });
+    } else {
+      if (target === 'all') await generateAll();
+      else await generateOne(target);
+    }
   }
 
   function flash(text, ok = true) {
@@ -175,6 +188,52 @@ export default function Dashboard() {
 
   function removeToast(id) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  }
+
+  async function generateExactOne(companyId, { autoSend } = {}) {
+    const bad = invalidFor();
+    if (bad) return flash(bad, false);
+    setBusy(`exact-${companyId}`);
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companyId, customPrompt, customSubject, senderKey, useExactText: true, autoSend }),
+    }).then((r) => r.json());
+    setBusy('');
+    if (res.error) return flash(res.error, false);
+
+    if (autoSend && res.draft?.id) {
+      flash('Draft created with exact text! Sending email now...', 'success');
+      await sendOne(res.draft.id);
+    } else {
+      flash('Exact email draft created successfully!', 'success');
+      await load();
+    }
+  }
+
+  async function generateExactAll({ autoSend } = {}) {
+    const bad = invalidFor();
+    if (bad) return flash(bad, false);
+    const pending = companies.filter((c) => !c.draft_id);
+    if (pending.length === 0) return flash('No companies without a draft.', false);
+
+    setBusy('all-exact:Saving exact drafts…');
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ generateAll: true, customPrompt, customSubject, senderKey, useExactText: true, autoSend }),
+    }).then((r) => r.json());
+    setBusy('');
+
+    if (res.error) return flash(res.error, false);
+
+    if (autoSend && res.drafts?.length > 0) {
+      flash(`Sending exact email to ${res.drafts.length} prospects...`, 'success');
+      await sendAllApproved(res.drafts);
+    } else {
+      flash(`Created exact drafts for ${res.count || pending.length} companies.`, true);
+      await load();
+    }
   }
 
   async function generateOne(companyId) {
@@ -297,6 +356,30 @@ export default function Dashboard() {
     load();
   }
 
+  function promptScheduleAllApproved() {
+    const approved = drafts.filter((d) => (d.status === 'approved' || d.status === 'scheduled') && d.contact_email);
+    if (approved.length === 0) return flash('No approved drafts with a contact email.', false);
+    setSchedModal({
+      id: 'all',
+      isBulk: true,
+      company_name: `All ${approved.length} Approved Email(s)`,
+      contact_email: 'Target companies in queue',
+      scheduled_tz: displayTz || 'Asia/Karachi',
+    });
+  }
+
+  async function scheduleAllApproved(sendAtMs, tz) {
+    setBusy('schedule-all');
+    const res = await fetch('/api/schedule', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scheduleAll: true, sendAtMs, tz }),
+    }).then((r) => r.json());
+    setBusy('');
+    if (res.error) return flash(res.error, false);
+    flash(`Scheduled ${res.count || 0} approved email(s) successfully!`, 'success');
+    load();
+  }
+
   async function unschedule(id) {
     const res = await fetch('/api/schedule', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
@@ -349,23 +432,45 @@ export default function Dashboard() {
   async function approveAllPending() {
     const pending = drafts.filter((d) => d.status === 'pending');
     if (pending.length === 0) return flash('No pending drafts.', false);
-    let ok = 0;
-    let failed = 0;
-    for (const d of pending) {
-      const res = await fetch('/api/drafts', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: d.id, status: 'approved' }),
-      }).then((r) => r.json());
-      if (res.error) {
-        failed += 1;
-      } else {
-        ok += 1;
-        if (res.draft) {
-          setDrafts((ds) => ds.map((item) => (item.id === res.draft.id ? res.draft : item)));
-        }
+    setBusy('approve-all');
+    const res = await fetch('/api/drafts', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approveAll: true }),
+    }).then((r) => r.json());
+    setBusy('');
+    if (res.error) return flash(res.error, false);
+    flash(`Approved ${pending.length} draft(s) successfully! Send and Schedule buttons are now active.`, 'success');
+    await load();
+  }
+
+  function promptRejectAllPending() {
+    const pending = drafts.filter((d) => d.status === 'pending');
+    if (pending.length === 0) return flash('No pending drafts to reject.', false);
+    setConfirmModal({
+      title: 'Reject All Pending Drafts',
+      message: `Are you sure you want to reject ${pending.length} pending draft(s)?`,
+      confirmText: 'Reject All',
+      danger: true,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        await rejectAllPending(pending);
       }
-    }
-    flash(failed ? `Approved ${ok}/${pending.length} draft(s), ${failed} failed.` : `Approved ${pending.length} draft(s).`, !failed);
+    });
+  }
+
+  async function rejectAllPending(pendingList) {
+    const pending = pendingList || drafts.filter((d) => d.status === 'pending');
+    if (pending.length === 0) return flash('No pending drafts.', false);
+    setBusy('reject-all');
+    const res = await fetch('/api/drafts', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rejectAll: true }),
+    }).then((r) => r.json());
+    setBusy('');
+    if (res.error) return flash(res.error, false);
+    flash(`Rejected ${pending.length} draft(s).`, 'delete');
     await load();
   }
 
@@ -526,6 +631,8 @@ export default function Dashboard() {
               unschedule={unschedule}
               displayTz={displayTz}
               approveAllPending={approveAllPending}
+              promptRejectAllPending={promptRejectAllPending}
+              promptScheduleAllApproved={promptScheduleAllApproved}
               promptSendAllApproved={promptSendAllApproved}
             />
 
@@ -547,6 +654,8 @@ export default function Dashboard() {
             setSenderKey={setSenderKey}
             customPrompt={customPrompt}
             setCustomPrompt={setCustomPrompt}
+            customSubject={customSubject}
+            setCustomSubject={setCustomSubject}
             onCancel={() => setModal(null)}
             onSubmit={runModal}
           />
@@ -558,7 +667,11 @@ export default function Dashboard() {
             onCancel={() => setSchedModal(null)}
             onConfirm={async (id, ms, tz) => {
               setSchedModal(null);
-              await scheduleDraft(id, ms, tz);
+              if (id === 'all' || schedModal?.isBulk) {
+                await scheduleAllApproved(ms, tz);
+              } else {
+                await scheduleDraft(id, ms, tz);
+              }
             }}
           />
         )}

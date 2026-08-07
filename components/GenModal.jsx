@@ -1,7 +1,20 @@
+import { useState } from 'react';
 import { C, overlay, modalCard, inputStyle, lbl, btn } from './constants.js';
-import { SparklesIcon, XIcon } from './Icons.jsx';
+import { SparklesIcon, XIcon, SendIcon, CheckCircleIcon } from './Icons.jsx';
 
-export function GenModal({ modal, companies, senders, senderKey, setSenderKey, customPrompt, setCustomPrompt, onCancel, onSubmit }) {
+export function GenModal({
+  modal,
+  companies,
+  senders,
+  senderKey,
+  setSenderKey,
+  customPrompt,
+  setCustomPrompt,
+  customSubject = '',
+  setCustomSubject = () => {},
+  onCancel,
+  onSubmit
+}) {
   const pendingCount = companies.filter((c) => !c.draft_id).length;
   const scope = modal.target === 'all'
     ? `all ${pendingCount} compan${pendingCount === 1 ? 'y' : 'ies'} without a draft`
@@ -14,7 +27,9 @@ export function GenModal({ modal, companies, senders, senderKey, setSenderKey, c
   ];
 
   function onKey(e) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') onSubmit();
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      onSubmit({ mode: 'ai' });
+    }
     if (e.key === 'Escape') onCancel();
   }
 
@@ -23,17 +38,19 @@ export function GenModal({ modal, companies, senders, senderKey, setSenderKey, c
       <div onClick={(e) => e.stopPropagation()} style={{
         ...modalCard,
         borderRadius: 24,
-        padding: 26
+        padding: 26,
+        maxWidth: 620,
+        width: '94%'
       }} onKeyDown={onKey}>
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ padding: 8, borderRadius: 12, background: 'rgba(124, 92, 255, 0.12)', color: '#7c5cff' }}>
               <SparklesIcon size={20} color="#7c5cff" />
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: C.ink, letterSpacing: '-0.02em' }}>
-                AI Cold Email Generator
+                Cold Email Studio & AI Generator
               </h3>
               <p style={{ color: C.sub, fontSize: 12, margin: '2px 0 0', fontWeight: 500 }}>Target: <strong>{scope}</strong></p>
             </div>
@@ -53,7 +70,28 @@ export function GenModal({ modal, companies, senders, senderKey, setSenderKey, c
         )}
 
         <div style={{ marginBottom: 12 }}>
-          <label style={lbl}>Prompt Preset Shortcuts</label>
+          <label style={lbl}>Email Subject (Optional for Exact Email)</label>
+          <input
+            type="text"
+            value={customSubject}
+            onChange={(e) => setCustomSubject(e.target.value)}
+            placeholder="e.g., Quick question regarding automation / Custom partnership proposal"
+            style={{ ...inputStyle, fontSize: 13, fontWeight: 600 }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={lbl}>Email Content or AI Prompt Instructions</label>
+            <span style={{ color: C.sub, fontSize: 11 }}>Type exact email or AI instructions</span>
+          </div>
+          <textarea autoFocus value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)}
+            placeholder={"Enter exact email body here (or write instructions for AI to generate)...\n\nTip: You can also paste 'Subject: Your Subject' at the top of this box."}
+            style={{ ...inputStyle, minHeight: 140, resize: 'vertical', lineHeight: 1.6, fontSize: 14 }} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={lbl}>Prompt Presets</label>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
             {presets.map((p) => (
               <button key={p.label} type="button" onClick={() => setCustomPrompt(p.text)}
@@ -73,30 +111,62 @@ export function GenModal({ modal, companies, senders, senderKey, setSenderKey, c
           </div>
         </div>
 
-        <label style={lbl}>AI Prompt / Offer Instructions</label>
-        <textarea autoFocus value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)}
-          placeholder={"Write your custom offer details here. Friendly, professional tone, under 90 words..."}
-          style={{ ...inputStyle, minHeight: 140, resize: 'vertical', lineHeight: 1.6, fontSize: 14 }} />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--card-border)' }}>
+          <button style={{ ...btn(C.sub, true), padding: '8px 14px', borderRadius: 12, fontSize: 13 }} onClick={onCancel}>Cancel</button>
 
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', marginTop: 18 }}>
-          <span style={{ color: C.sub, fontSize: 11, fontWeight: 500 }}>
-            Press <strong>Ctrl/Cmd + Enter</strong> to generate
-          </span>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              title="Save exact entered text as a draft without AI modification"
+              style={{
+                ...btn(C.ink, true),
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 700
+              }}
+              onClick={() => onSubmit({ mode: 'exact', autoSend: false })}
+            >
+              <CheckCircleIcon size={14} color={C.ink} />
+              Use Exact Text (Draft)
+            </button>
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button style={{ ...btn(C.sub, true), padding: '8px 16px', borderRadius: 12 }} onClick={onCancel}>Cancel</button>
-            <button style={{
-              ...btn('#7c5cff'),
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 20px',
-              borderRadius: 12,
-              fontSize: 13,
-              fontWeight: 700
-            }} onClick={onSubmit}>
-              <SparklesIcon size={15} color="#fff" />
-              Generate Drafts
+            <button
+              title="Create draft with exact entered text and send immediately"
+              style={{
+                ...btn('#10b981'),
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 16px',
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 700
+              }}
+              onClick={() => onSubmit({ mode: 'exact', autoSend: true })}
+            >
+              <SendIcon size={14} color="#fff" />
+              Send Exact Email Now
+            </button>
+
+            <button
+              title="Generate personalized cold email using DeepSeek AI"
+              style={{
+                ...btn('#7c5cff'),
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 16px',
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 700
+              }}
+              onClick={() => onSubmit({ mode: 'ai', autoSend: false })}
+            >
+              <SparklesIcon size={14} color="#fff" />
+              Generate with AI
             </button>
           </div>
         </div>

@@ -16,11 +16,7 @@ export async function GET() {
 // Body: { companyId, generateAll, customPrompt, offer, senderKey }
 export async function POST(req) {
   try {
-    if (!process.env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY === 'sk-xxxxxxxx') {
-      return Response.json({ error: 'DEEPSEEK_API_KEY is not set in .env.local. Please add your DeepSeek API key to .env.local.' }, { status: 400 });
-    }
-
-    const { companyId, generateAll, offer, customPrompt, senderKey } = await req.json();
+    const { companyId, generateAll, offer, customPrompt, customSubject, senderKey, useExactText, autoSend } = await req.json();
     const isBatch = generateAll || companyId === 'all';
 
     if (!isBatch && !companyId) {
@@ -29,10 +25,43 @@ export async function POST(req) {
 
     const promptText = (customPrompt || offer || '').trim();
     if (!promptText) {
-      return Response.json({ error: 'Please write your custom email prompt first.' }, { status: 400 });
+      return Response.json({ error: 'Please enter your email content or prompt first.' }, { status: 400 });
     }
 
     const sender = findSender(senderKey);
+
+    // If exact text mode is selected, bypass DeepSeek AI generation
+    let result;
+    if (useExactText) {
+      let subject = (customSubject || '').trim();
+      let body = promptText;
+
+      // Extract subject line if user typed "Subject: ..." on the first line
+      if (!subject) {
+        const match = body.match(/^subject\s*:\s*(.+)$/im);
+        if (match) {
+          subject = match[1].trim();
+          body = body.replace(/^subject\s*:\s*.+(\r?\n)*/i, '').trim();
+        } else {
+          subject = 'Cold Outreach';
+        }
+      }
+
+      result = {
+        subject: subject || 'Cold Outreach',
+        body: body || promptText,
+        research_summary: '(Exact user-entered email)',
+        site_ok: null,
+        site_note: '',
+        pages_crawled: 0,
+        signals: [],
+        weak_points: [],
+      };
+    } else {
+      if (!process.env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY === 'sk-xxxxxxxx') {
+        return Response.json({ error: 'DEEPSEEK_API_KEY is not set in .env.local. Please add your DeepSeek API key to .env.local.' }, { status: 400 });
+      }
+    }
 
     if (isBatch) {
       let targetCompanies = await all(`
@@ -49,22 +78,23 @@ export async function POST(req) {
         return Response.json({ error: 'No companies found in database. Please upload companies first.' }, { status: 400 });
       }
 
-      // 1) Generate ONE uniform draft for all target companies
-      const result = await generateDraft({ company: null, offer: promptText, sender, mode: 'custom', customPrompt: promptText });
+      if (!useExactText) {
+        result = await generateDraft({ company: null, offer: promptText, sender, mode: 'custom', customPrompt: promptText });
+      }
 
-      // 2) Clean up un-sent drafts for target companies
+      // Clean up un-sent drafts for target companies
       for (const comp of targetCompanies) {
         await run("DELETE FROM drafts WHERE company_id = ? AND status IN ('pending', 'rejected', 'error')", [comp.id]);
       }
 
-      // 3) Insert uniform draft for each company
+      // Insert uniform draft for each company
       const rowsToInsert = targetCompanies.map((comp) => ({
         company_id: comp.id,
         subject: result.subject,
         body: result.body,
-        research_summary: result.research_summary || '(Custom email — written from your prompt.)',
+        research_summary: result.research_summary || '(Exact user-entered email)',
         offer: promptText,
-        status: 'pending',
+        status: autoSend ? 'approved' : 'pending',
         sender_key: sender.key,
         sender_name: sender.name,
         sender_email: sender.email,
@@ -72,11 +102,19 @@ export async function POST(req) {
 
       await runBulkInsert('drafts', rowsToInsert);
 
+      const insertedDrafts = await all(`
+        SELECT d.*, c.name AS company_name, c.website, c.contact_email 
+        FROM drafts d 
+        JOIN companies c ON c.id = d.company_id 
+        ORDER BY d.id DESC LIMIT ?
+      `, [targetCompanies.length]);
+
       return Response.json({
         success: true,
         count: targetCompanies.length,
         subject: result.subject,
         body: result.body,
+        drafts: insertedDrafts,
       });
     }
 
@@ -87,12 +125,16 @@ export async function POST(req) {
     // Clean up any un-sent draft for this company before creating a fresh draft
     await run("DELETE FROM drafts WHERE company_id = ? AND status IN ('pending', 'rejected', 'error')", [company.id]);
 
-    const result = await generateDraft({ company, offer: promptText, sender, mode: 'custom', customPrompt: promptText });
+    if (!useExactText) {
+      result = await generateDraft({ company, offer: promptText, sender, mode: 'custom', customPrompt: promptText });
+    }
+
+    const draftStatus = autoSend ? 'approved' : 'pending';
 
     const info = await run(`
       INSERT INTO drafts (company_id, subject, body, research_summary, offer, status, sender_key, sender_name, sender_email)
-      VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)
-    `, [company.id, result.subject, result.body, result.research_summary, promptText, sender.key, sender.name, sender.email]);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [company.id, result.subject, result.body, result.research_summary, promptText, draftStatus, sender.key, sender.name, sender.email]);
 
     const draft = await get('SELECT * FROM drafts WHERE id = ?', [Number(info.lastInsertRowid)]);
     const fullDraft = {

@@ -2,8 +2,12 @@ import { useState } from 'react';
 import { C, US_TZS, statusColor, overlay, modalCard, inputStyle, lbl, btn, wallToUtcMs, nowInTzPlus, tzDatePlusDaysAt } from './constants.js';
 
 export function ScheduleModal({ draft, onCancel, onConfirm }) {
-  const [tz, setTz] = useState(draft.scheduled_tz || 'Asia/Karachi');
-  const [when, setWhen] = useState(tzDatePlusDaysAt(draft.scheduled_tz || 'Asia/Karachi', 1, 9, 0));
+  const isBulk = draft?.isBulk || draft?.id === 'all' || draft === 'all';
+  const targetId = isBulk ? 'all' : draft?.id;
+  const initialTz = draft?.scheduled_tz || 'Asia/Karachi';
+
+  const [tz, setTz] = useState(initialTz);
+  const [when, setWhen] = useState(tzDatePlusDaysAt(initialTz, 1, 9, 0));
   const [mins, setMins] = useState(2);
   const [err, setErr] = useState('');
   const tzName = (US_TZS.find((t) => t[0] === tz) || [, ''])[1];
@@ -24,15 +28,17 @@ export function ScheduleModal({ draft, onCancel, onConfirm }) {
   function submit() {
     if (!when) return setErr('Pick a date and time.');
     if (tooSoon) return setErr('That time is in the past. Pick a future time.');
-    onConfirm(draft.id, ms, tz);
+    onConfirm(targetId, ms, tz);
   }
 
   return (
     <div onClick={onCancel} style={overlay}>
       <div onClick={(e) => e.stopPropagation()} style={modalCard}>
-        <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 750, color: C.ink, letterSpacing: '-0.01em' }}>Schedule send</h3>
+        <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 750, color: C.ink, letterSpacing: '-0.01em' }}>
+          {isBulk ? 'Schedule All Approved Emails' : 'Schedule send'}
+        </h3>
         <p style={{ color: C.sub, fontSize: 13, margin: '0 0 14px' }}>
-          {draft.company_name} — {draft.contact_email || 'no contact email'}
+          {isBulk ? (draft?.company_name || 'All approved email drafts') : `${draft.company_name} — ${draft.contact_email || 'no contact email'}`}
         </p>
 
         <div style={{ fontSize: 12, color: C.sub, marginBottom: 14, fontWeight: 500 }}>
@@ -76,7 +82,7 @@ export function ScheduleModal({ draft, onCancel, onConfirm }) {
         </div>
 
         <div style={{ marginTop: 14, padding: 14, borderRadius: 16, background: 'var(--subtle-card-bg)', border: '1px solid var(--input-border)', fontSize: 13, backdropFilter: 'blur(8px)' }}>
-          <div style={{ color: C.sub, fontWeight: 500 }}>This email will send at:</div>
+          <div style={{ color: C.sub, fontWeight: 500 }}>{isBulk ? 'All approved emails will send at:' : 'This email will send at:'}</div>
           <div style={{ color: tooSoon ? C.red : '#0e7490', fontWeight: 750, fontSize: 15, marginTop: 3 }}>
             {when ? `${when.replace('T', ' ')} ${(US_TZS.find((t) => t[0] === tz) || [, ''])[1]}` : '—'}
           </div>
@@ -91,8 +97,8 @@ export function ScheduleModal({ draft, onCancel, onConfirm }) {
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
           <button style={btn(C.sub, true)} onClick={onCancel}>Cancel</button>
-          <button style={btn(statusColor.scheduled)} disabled={!draft.contact_email || tooSoon} onClick={submit}>
-            Schedule send
+          <button style={btn(statusColor.scheduled)} disabled={(!isBulk && !draft.contact_email) || tooSoon} onClick={submit}>
+            {isBulk ? 'Schedule All Emails' : 'Schedule send'}
           </button>
         </div>
       </div>

@@ -1,12 +1,45 @@
-import { get, run } from '../../../lib/db.js';
+import { get, all, run } from '../../../lib/db.js';
 
 export const runtime = 'nodejs';
 
-// Schedule an approved draft. Body: { id, sendAtMs (UTC epoch ms), tz }
+// Schedule draft(s). Body: { id, scheduleAll, sendAtMs (UTC epoch ms), tz }
 export async function POST(req) {
   try {
-    const { id, sendAtMs, tz } = await req.json();
-    if (!id || !sendAtMs) return Response.json({ error: 'id and sendAtMs required' }, { status: 400 });
+    const { id, scheduleAll, sendAtMs, tz } = await req.json();
+    const isBatch = scheduleAll || id === 'all';
+
+    if (!sendAtMs) return Response.json({ error: 'sendAtMs required' }, { status: 400 });
+    if (!isBatch && !id) return Response.json({ error: 'id required' }, { status: 400 });
+
+    if (Number(sendAtMs) <= Date.now()) {
+      return Response.json({ error: 'Pick a time in the future.' }, { status: 400 });
+    }
+
+    const utc = new Date(Number(sendAtMs)).toISOString().slice(0, 19).replace('T', ' ');
+
+    if (isBatch) {
+      // Find all approved or scheduled drafts for companies with a valid contact email
+      const candidateDrafts = await all("SELECT * FROM drafts WHERE status IN ('approved', 'scheduled')");
+      const validDrafts = [];
+      for (const d of candidateDrafts) {
+        if (d.company_id) {
+          const comp = await get('SELECT contact_email FROM companies WHERE id = ?', [d.company_id]);
+          if (comp?.contact_email && comp.contact_email.trim()) {
+            validDrafts.push(d);
+          }
+        }
+      }
+
+      if (validDrafts.length === 0) {
+        return Response.json({ error: 'No approved drafts with a valid contact email found to schedule.' }, { status: 400 });
+      }
+
+      for (const draft of validDrafts) {
+        await run("UPDATE drafts SET status = 'scheduled', scheduled_at = ?, scheduled_tz = ? WHERE id = ?", [utc, tz || null, draft.id]);
+      }
+
+      return Response.json({ success: true, count: validDrafts.length });
+    }
 
     const d = await get('SELECT * FROM drafts WHERE id = ?', [id]);
     const company = d?.company_id ? await get('SELECT * FROM companies WHERE id = ?', [d.company_id]) : null;
@@ -16,12 +49,8 @@ export async function POST(req) {
       return Response.json({ error: 'Approve the draft before scheduling it.' }, { status: 409 });
     }
     if (!company?.contact_email) return Response.json({ error: 'No contact email for this company.' }, { status: 400 });
-    if (Number(sendAtMs) <= Date.now()) {
-      return Response.json({ error: 'Pick a time in the future.' }, { status: 400 });
-    }
 
     // Store as UTC "YYYY-MM-DD HH:MM:SS" so it compares with datetime('now').
-    const utc = new Date(Number(sendAtMs)).toISOString().slice(0, 19).replace('T', ' ');
     await run("UPDATE drafts SET status = 'scheduled', scheduled_at = ?, scheduled_tz = ? WHERE id = ?",
       [utc, tz || null, id]);
 

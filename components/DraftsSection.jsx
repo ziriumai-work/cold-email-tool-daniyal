@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { C, statusColor, inputStyle, btn } from './constants.js';
 import { Section, Badge, Empty, SearchInput } from './UIElements.jsx';
 import { DraftCard } from './DraftCard.jsx';
-import { CheckCircleIcon, SendIcon, MailIcon } from './Icons.jsx';
+import { CheckCircleIcon, ClockIcon, SendIcon, MailIcon, XIcon } from './Icons.jsx';
 
 export function DraftsSection({
   drafts,
@@ -15,11 +15,16 @@ export function DraftsSection({
   unschedule,
   displayTz,
   approveAllPending,
+  promptRejectAllPending,
+  promptScheduleAllApproved,
   promptSendAllApproved
 }) {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [expandedDraftId, setExpandedDraftId] = useState(null);
+
+  const hasPending = drafts.some((d) => d.status === 'pending');
+  const hasApproved = drafts.some((d) => d.status === 'approved');
 
   return (
     <Section title={`Drafts & Outreach Queue (${drafts.length})`} kicker="Human Approval Queue"
@@ -31,24 +36,50 @@ export function DraftsSection({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '8px 16px',
+              padding: '8px 14px',
               borderRadius: 12,
               fontSize: 13,
               fontWeight: 700
-            }} onClick={approveAllPending} disabled={!!busy}>
+            }} onClick={approveAllPending} disabled={!!busy || !hasPending}>
               <CheckCircleIcon size={15} color={C.green} />
               Approve All Pending
+            </button>
+            <button style={{
+              ...btn(C.red, true),
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              borderRadius: 12,
+              fontSize: 13,
+              fontWeight: 700
+            }} onClick={promptRejectAllPending} disabled={!!busy || !hasPending}>
+              <XIcon size={15} color={C.red} />
+              Reject All Pending
+            </button>
+            <button style={{
+              ...btn('#0e7490', true),
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              borderRadius: 12,
+              fontSize: 13,
+              fontWeight: 700
+            }} onClick={promptScheduleAllApproved} disabled={!!busy || !hasApproved}>
+              <ClockIcon size={15} color="#0e7490" />
+              Schedule All Approved
             </button>
             <button style={{
               ...btn(C.accent),
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '8px 18px',
+              padding: '8px 16px',
               borderRadius: 12,
               fontSize: 13,
               fontWeight: 700
-            }} onClick={promptSendAllApproved} disabled={!!busy}>
+            }} onClick={promptSendAllApproved} disabled={!!busy || !hasApproved}>
               <SendIcon size={15} color="#fff" />
               {busy.startsWith('send-all:') ? `Sending ${busy.slice(9)}…` : 'Send All Approved'}
             </button>

@@ -42,10 +42,21 @@ async function getDraftWithCompany(id) {
 }
 
 // Edit a draft's subject/body or change its status (approve/reject).
-// Body: { id, subject?, body?, status?, senderKey? }
+// Body: { id, approveAll, rejectAll, subject?, body?, status?, senderKey? }
 export async function PATCH(req) {
   try {
-    const { id, subject, body, status, senderKey } = await req.json();
+    const { id, approveAll, rejectAll, subject, body, status, senderKey } = await req.json();
+
+    if (approveAll || id === 'approveAll') {
+      await run("UPDATE drafts SET status = 'approved' WHERE status = 'pending'");
+      return Response.json({ success: true });
+    }
+
+    if (rejectAll || id === 'rejectAll') {
+      await run("UPDATE drafts SET status = 'rejected' WHERE status = 'pending'");
+      return Response.json({ success: true });
+    }
+
     if (!id) return Response.json({ error: 'id required' }, { status: 400 });
 
     const existing = await get('SELECT * FROM drafts WHERE id = ?', [id]);

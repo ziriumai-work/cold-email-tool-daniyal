@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { C, statusColor, th, td, btn, btnSm } from './constants.js';
 import { Section, Badge, Empty, SearchInput } from './UIElements.jsx';
-import { SparklesIcon, TrashIcon, BuildingIcon, ExternalLinkIcon } from './Icons.jsx';
+import { SparklesIcon, TrashIcon, BuildingIcon, ExternalLinkIcon, SendIcon } from './Icons.jsx';
 
 export function CompaniesSection({ companies, busy, openGen, promptClearAll, promptClearOne }) {
   const [companySearch, setCompanySearch] = useState('');
@@ -11,6 +11,19 @@ export function CompaniesSection({ companies, busy, openGen, promptClearAll, pro
       right={
         companies.length > 0 && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button style={{
+              ...btn('#10b981'),
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 16px',
+              borderRadius: 12,
+              fontSize: 13,
+              fontWeight: 700
+            }} onClick={() => openGen('all')} disabled={!!busy} title="Send or create exact email draft for all target companies">
+              <SendIcon size={15} color="#fff" />
+              Send Exact Email to All
+            </button>
             <button style={{
               ...btn('#7c5cff'),
               display: 'inline-flex',
@@ -22,7 +35,7 @@ export function CompaniesSection({ companies, busy, openGen, promptClearAll, pro
               fontWeight: 700
             }} onClick={() => openGen('all')} disabled={!!busy}>
               <SparklesIcon size={15} color="#fff" />
-              {busy.startsWith('all-custom:') ? `${busy.slice(11)}…` : 'Generate All Drafts'}
+              {busy.startsWith('all-custom:') ? `${busy.slice(11)}…` : 'Generate AI Drafts'}
             </button>
             <button style={{
               ...btn(C.red, true),
@@ -132,6 +145,20 @@ export function CompaniesSection({ companies, busy, openGen, promptClearAll, pro
                 </td>
                 <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <button style={{
+                    ...btnSm('#10b981', false),
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '5px 12px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    marginRight: 6
+                  }} disabled={!!busy}
+                    title="Send exact email to this prospect" onClick={() => openGen(c.id)}>
+                    <SendIcon size={13} color="#fff" />
+                    {busy === 'exact-' + c.id ? 'Sending…' : 'Send Exact Email'}
+                  </button>
+                  <button style={{
                     ...btnSm('#7c5cff', true),
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -142,7 +169,7 @@ export function CompaniesSection({ companies, busy, openGen, promptClearAll, pro
                   }} disabled={!!busy}
                     title="Generate custom personalized AI email draft" onClick={() => openGen(c.id)}>
                     <SparklesIcon size={13} color="#7c5cff" />
-                    {busy === 'custom-' + c.id ? 'Generating…' : 'Generate Draft'}
+                    {busy === 'custom-' + c.id ? 'Generating…' : 'AI Draft'}
                   </button>
                   <button style={{
                     ...btnSm(C.red, true),
