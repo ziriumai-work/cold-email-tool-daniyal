@@ -11,7 +11,7 @@ import {
   SecurityAuditView,
   RevenueRoiView,
 } from '../components/EnterpriseTabs.jsx';
-import { BuildingIcon, MailIcon, SendIcon, SparklesIcon } from '../components/Icons.jsx';
+import { BuildingIcon, MailIcon, SendIcon, SparklesIcon, SpinnerIcon } from '../components/Icons.jsx';
 import { Header } from '../components/Header.jsx';
 import { ToastContainer } from '../components/ToastContainer.jsx';
 import { ConfirmModal } from '../components/ConfirmModal.jsx';
@@ -22,6 +22,22 @@ import { SignatureSection } from '../components/SignatureSection.jsx';
 import { CompaniesSection } from '../components/CompaniesSection.jsx';
 import { DraftsSection } from '../components/DraftsSection.jsx';
 import { RepliesSection } from '../components/RepliesSection.jsx';
+
+function getBusyText(b) {
+  if (!b) return '';
+  if (b === 'import') return 'Extracting & parsing leads file…';
+  if (b === 'replies') return 'Polling IMAP mailboxes for incoming replies…';
+  if (b === 'approve-all') return 'Approving all pending drafts in queue…';
+  if (b === 'reject-all') return 'Rejecting pending drafts…';
+  if (b === 'schedule-all') return 'Scheduling approved emails…';
+  if (b.startsWith('send-all:')) return `Sending batch outreach email (${b.slice(9)})…`;
+  if (b.startsWith('send-')) return 'Dispatching cold email to prospect…';
+  if (b.startsWith('exact-')) return 'Creating exact draft & dispatching email…';
+  if (b.startsWith('custom-')) return 'DeepSeek AI analyzing prospect & generating personalized draft…';
+  if (b.startsWith('all-exact:')) return 'Sending exact custom email to target prospects…';
+  if (b.startsWith('all-custom:')) return 'DeepSeek AI generating drafts for all target prospects…';
+  return 'Processing operation…';
+}
 
 export default function Dashboard() {
   const [offer, setOffer] = useState('');
@@ -444,6 +460,46 @@ export default function Dashboard() {
     await load();
   }
 
+  function promptApproveAndSendAll() {
+    const ready = drafts.filter((d) => (d.status === 'pending' || d.status === 'approved') && d.contact_email);
+    if (ready.length === 0) return flash('No drafts ready to send.', false);
+    setConfirmModal({
+      title: 'Approve & Send All Emails',
+      message: `Approve and send all ${ready.length} draft(s) immediately to prospects now?`,
+      confirmText: 'Approve & Send All',
+      danger: false,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        await approveAndSendAll();
+      }
+    });
+  }
+
+  async function approveAndSendAll() {
+    const pending = drafts.filter((d) => d.status === 'pending');
+    if (pending.length > 0) {
+      setBusy('approve-all');
+      const res = await fetch('/api/drafts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approveAll: true }),
+      }).then((r) => r.json());
+      if (res.error) {
+        setBusy('');
+        return flash(res.error, false);
+      }
+    }
+
+    const updated = await fetch('/api/drafts').then((r) => r.json());
+    const readyList = (updated.drafts || []).filter((d) => (d.status === 'approved' || d.status === 'pending') && d.contact_email);
+    if (readyList.length === 0) {
+      setBusy('');
+      return flash('No approved emails ready to send.', false);
+    }
+    flash(`Sending ${readyList.length} email(s) now...`, 'success');
+    await sendAllApproved(readyList);
+  }
+
   function promptRejectAllPending() {
     const pending = drafts.filter((d) => d.status === 'pending');
     if (pending.length === 0) return flash('No pending drafts to reject.', false);
@@ -534,6 +590,32 @@ export default function Dashboard() {
             navVisible={navVisible}
             removeToast={removeToast}
           />
+
+          {busy && (
+            <div style={{
+              position: 'sticky',
+              top: 76,
+              zIndex: 99,
+              margin: '0 auto 20px',
+              padding: '12px 24px',
+              borderRadius: 16,
+              background: 'linear-gradient(135deg, #0284c7 0%, #4f46e5 100%)',
+              color: '#ffffff',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 10px 30px -5px rgba(2, 132, 199, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+              fontSize: 13,
+              fontWeight: 750,
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              animation: 'fadeIn 0.2s ease'
+            }}>
+              <SpinnerIcon size={18} color="#fff" />
+              <span>{getBusyText(busy)}</span>
+            </div>
+          )}
 
         {activeTab === 'deliverability' && <DeliverabilityView flash={flash} />}
         {activeTab === 'sequences' && <SequencesView flash={flash} />}
@@ -631,6 +713,7 @@ export default function Dashboard() {
               unschedule={unschedule}
               displayTz={displayTz}
               approveAllPending={approveAllPending}
+              promptApproveAndSendAll={promptApproveAndSendAll}
               promptRejectAllPending={promptRejectAllPending}
               promptScheduleAllApproved={promptScheduleAllApproved}
               promptSendAllApproved={promptSendAllApproved}
@@ -656,6 +739,7 @@ export default function Dashboard() {
             setCustomPrompt={setCustomPrompt}
             customSubject={customSubject}
             setCustomSubject={setCustomSubject}
+            busy={busy}
             onCancel={() => setModal(null)}
             onSubmit={runModal}
           />

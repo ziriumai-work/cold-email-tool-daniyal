@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { C, statusColor, inputStyle, btn } from './constants.js';
 import { Section, Badge, Empty, SearchInput } from './UIElements.jsx';
 import { DraftCard } from './DraftCard.jsx';
-import { CheckCircleIcon, ClockIcon, SendIcon, MailIcon, XIcon } from './Icons.jsx';
+import { CheckCircleIcon, ClockIcon, SendIcon, MailIcon, XIcon, SpinnerIcon } from './Icons.jsx';
 
 export function DraftsSection({
   drafts,
@@ -15,6 +15,7 @@ export function DraftsSection({
   unschedule,
   displayTz,
   approveAllPending,
+  promptApproveAndSendAll,
   promptRejectAllPending,
   promptScheduleAllApproved,
   promptSendAllApproved
@@ -22,67 +23,82 @@ export function DraftsSection({
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [expandedDraftId, setExpandedDraftId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const hasPending = drafts.some((d) => d.status === 'pending');
   const hasApproved = drafts.some((d) => d.status === 'approved');
+  const hasReadyToSend = drafts.some((d) => (d.status === 'pending' || d.status === 'approved') && d.contact_email);
 
   return (
     <Section title={`Drafts & Outreach Queue (${drafts.length})`} kicker="Human Approval Queue"
       right={
         drafts.length > 0 && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button style={{
-              ...btn(C.green, true),
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              borderRadius: 12,
-              fontSize: 13,
-              fontWeight: 700
-            }} onClick={approveAllPending} disabled={!!busy || !hasPending}>
-              <CheckCircleIcon size={15} color={C.green} />
-              Approve All Pending
-            </button>
-            <button style={{
-              ...btn(C.red, true),
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              borderRadius: 12,
-              fontSize: 13,
-              fontWeight: 700
-            }} onClick={promptRejectAllPending} disabled={!!busy || !hasPending}>
-              <XIcon size={15} color={C.red} />
-              Reject All Pending
-            </button>
-            <button style={{
-              ...btn('#0e7490', true),
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              borderRadius: 12,
-              fontSize: 13,
-              fontWeight: 700
-            }} onClick={promptScheduleAllApproved} disabled={!!busy || !hasApproved}>
-              <ClockIcon size={15} color="#0e7490" />
-              Schedule All Approved
-            </button>
-            <button style={{
-              ...btn(C.accent),
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 16px',
-              borderRadius: 12,
-              fontSize: 13,
-              fontWeight: 700
-            }} onClick={promptSendAllApproved} disabled={!!busy || !hasApproved}>
-              <SendIcon size={15} color="#fff" />
-              {busy.startsWith('send-all:') ? `Sending ${busy.slice(9)}…` : 'Send All Approved'}
-            </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', marginLeft: 'auto' }}>
+            {/* Dynamic Primary Bulk Action Button: Approve All Pending -> Send All Approved */}
+            {hasPending ? (
+              <button style={{
+                ...btn(C.green),
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 18px',
+                borderRadius: 12,
+                fontSize: 13,
+                fontWeight: 700
+              }} onClick={approveAllPending} disabled={!!busy} title="Approve all pending drafts in queue">
+                {busy === 'approve-all' ? <SpinnerIcon size={15} color="#fff" /> : <CheckCircleIcon size={15} color="#fff" />}
+                {busy === 'approve-all' ? 'Approving All Drafts…' : 'Approve All Pending'}
+              </button>
+            ) : hasApproved ? (
+              <button style={{
+                ...btn('#10b981'),
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 18px',
+                borderRadius: 12,
+                fontSize: 13,
+                fontWeight: 700
+              }} onClick={promptSendAllApproved} disabled={!!busy} title="Send all approved email drafts to prospects">
+                {busy.startsWith('send-all:') ? <SpinnerIcon size={15} color="#fff" /> : <SendIcon size={15} color="#fff" />}
+                {busy.startsWith('send-all:') ? `Sending ${busy.slice(9)}…` : 'Send All Approved'}
+              </button>
+            ) : null}
+
+            {/* Secondary Action: Schedule All Approved (when approved drafts exist) */}
+            {hasApproved && (
+              <button style={{
+                ...btn('#0e7490', true),
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: 12,
+                fontSize: 13,
+                fontWeight: 700
+              }} onClick={promptScheduleAllApproved} disabled={!!busy}>
+                <ClockIcon size={15} color="#0e7490" />
+                Schedule All Approved
+              </button>
+            )}
+
+            {/* Secondary Action: Reject All Pending (when pending drafts exist) */}
+            {hasPending && (
+              <button style={{
+                ...btn(C.red, true),
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: 12,
+                fontSize: 13,
+                fontWeight: 700
+              }} onClick={promptRejectAllPending} disabled={!!busy}>
+                <XIcon size={15} color={C.red} />
+                Reject All Pending
+              </button>
+            )}
           </div>
         )
       }>
@@ -101,7 +117,7 @@ export function DraftsSection({
                 }).length;
                 const active = filter === f;
                 return (
-                  <button key={f} onClick={() => setFilter(f)}
+                  <button key={f} onClick={() => { setFilter(f); setPage(1); }}
                     style={{
                       background: active ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' : 'var(--input-bg)',
                       color: active ? '#ffffff' : C.sub,
@@ -121,11 +137,42 @@ export function DraftsSection({
               })}
             </div>
 
-            <SearchInput
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by company or subject..."
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.sub, fontWeight: 600 }}>
+                <span>Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  style={{
+                    background: 'var(--subtle-card-bg)',
+                    color: C.ink,
+                    border: '1px solid var(--card-border)',
+                    borderRadius: 8,
+                    padding: '3px 8px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+
+              <SearchInput
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search by company or subject..."
+              />
+            </div>
           </div>
 
           {(() => {
@@ -138,16 +185,40 @@ export function DraftsSection({
                 const eff = isReplied ? 'replied' : isSent ? 'sent' : d.status;
                 return eff === filter;
               })
-              .filter((d) => !q || `${d.company_name} ${d.subject || ''} ${d.contact_email || ''}`.toLowerCase().includes(q))
-              .sort((a, b) => b.id - a.id);
+              .sort((a, b) => {
+                const timeA = a.created_at || a.sent_at;
+                const timeB = b.created_at || b.sent_at;
+                if (timeA && timeB) {
+                  const tA = new Date(timeA).getTime();
+                  const tB = new Date(timeB).getTime();
+                  if (!isNaN(tA) && !isNaN(tB) && tA !== tB) return tB - tA;
+                }
+                return (Number(b.id) || 0) - (Number(a.id) || 0);
+              });
 
             if (filteredSorted.length === 0) {
               return <Empty icon={MailIcon}>No drafts match search criteria.</Empty>;
             }
 
+            const totalPages = Math.max(1, Math.ceil(filteredSorted.length / pageSize));
+            const safePage = Math.min(page, totalPages);
+            const startIndex = (safePage - 1) * pageSize;
+            const endIndex = Math.min(startIndex + pageSize, filteredSorted.length);
+            const paginatedDrafts = filteredSorted.slice(startIndex, endIndex);
+
             const activeId = expandedDraftId === 'collapsed'
               ? null
-              : (filteredSorted.some((d) => d.id === expandedDraftId) ? expandedDraftId : filteredSorted[0]?.id);
+              : (filteredSorted.some((d) => d.id === expandedDraftId) ? expandedDraftId : paginatedDrafts[0]?.id);
+
+            // Generate page numbers array (e.g. [1, 2, 3])
+            const pageNumbers = [];
+            const maxDisplayed = 5;
+            let startP = Math.max(1, safePage - 2);
+            let endP = Math.min(totalPages, startP + maxDisplayed - 1);
+            if (endP - startP + 1 < maxDisplayed) {
+              startP = Math.max(1, endP - maxDisplayed + 1);
+            }
+            for (let i = startP; i <= endP; i++) pageNumbers.push(i);
 
             return (
               <>
@@ -161,33 +232,40 @@ export function DraftsSection({
                   borderRadius: 18,
                   border: '1px solid var(--card-border)',
                   backdropFilter: 'blur(12px)',
-                  flexWrap: 'wrap'
+                  flexWrap: 'wrap',
+                  justifyContent: 'space-between'
                 }}>
-                  <span style={{ fontSize: 13, fontWeight: 750, color: C.ink, whiteSpace: 'nowrap' }}>
-                    Focus Draft View:
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 260 }}>
+                    <span style={{ fontSize: 13, fontWeight: 750, color: C.ink, whiteSpace: 'nowrap' }}>
+                      Focus Draft View:
+                    </span>
+                    <select
+                      value={activeId || 'collapsed'}
+                      onChange={(e) => setExpandedDraftId(e.target.value === 'collapsed' ? 'collapsed' : Number(e.target.value))}
+                      style={{
+                        ...inputStyle,
+                        flex: 1,
+                        minWidth: 200,
+                        padding: '7px 14px',
+                        borderRadius: 12,
+                        fontWeight: 650,
+                        background: 'var(--input-bg)'
+                      }}>
+                      <option value="collapsed">-- Collapse all drafts --</option>
+                      {filteredSorted.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.company_name} — {d.subject || '(no subject)'} [{d.status}]
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <span style={{ color: C.sub, fontSize: 12, fontWeight: 600, background: 'var(--card-bg)', padding: '4px 12px', borderRadius: 999, border: '1px solid var(--card-border)' }}>
+                    Showing {startIndex + 1}–{endIndex} of {filteredSorted.length} drafts
                   </span>
-                  <select
-                    value={activeId || 'collapsed'}
-                    onChange={(e) => setExpandedDraftId(e.target.value === 'collapsed' ? 'collapsed' : Number(e.target.value))}
-                    style={{
-                      ...inputStyle,
-                      flex: 1,
-                      minWidth: 200,
-                      padding: '7px 14px',
-                      borderRadius: 12,
-                      fontWeight: 650,
-                      background: 'var(--input-bg)'
-                    }}>
-                    <option value="collapsed">-- Collapse all drafts --</option>
-                    {filteredSorted.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.company_name} — {d.subject || '(no subject)'} [{d.status}]
-                      </option>
-                    ))}
-                  </select>
                 </div>
 
-                {filteredSorted.map((d) => {
+                {paginatedDrafts.map((d) => {
                   const isExpanded = d.id === activeId;
                   if (isExpanded) {
                     return (
@@ -240,6 +318,107 @@ export function DraftsSection({
                     </div>
                   );
                 })}
+
+                {/* Pagination Bar */}
+                {totalPages > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, flexWrap: 'wrap', gap: 10 }}>
+                    <div style={{ color: C.sub, fontSize: 12, fontWeight: 600 }}>
+                      Page <strong>{safePage}</strong> of <strong>{totalPages}</strong> ({filteredSorted.length} total drafts)
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <button
+                        disabled={safePage === 1}
+                        onClick={() => setPage(1)}
+                        style={{
+                          padding: '5px 10px',
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 650,
+                          border: '1px solid var(--card-border)',
+                          background: 'var(--subtle-card-bg)',
+                          color: safePage === 1 ? C.muted : C.ink,
+                          cursor: safePage === 1 ? 'not-allowed' : 'pointer'
+                        }}
+                        title="First Page"
+                      >
+                        « First
+                      </button>
+
+                      <button
+                        disabled={safePage === 1}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 650,
+                          border: '1px solid var(--card-border)',
+                          background: 'var(--subtle-card-bg)',
+                          color: safePage === 1 ? C.muted : C.ink,
+                          cursor: safePage === 1 ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        ‹ Prev
+                      </button>
+
+                      {pageNumbers.map((num) => (
+                        <button
+                          key={num}
+                          onClick={() => setPage(num)}
+                          style={{
+                            padding: '5px 10px',
+                            borderRadius: 8,
+                            fontSize: 12,
+                            fontWeight: num === safePage ? 800 : 600,
+                            border: num === safePage ? `1px solid ${C.accent}` : '1px solid var(--card-border)',
+                            background: num === safePage ? C.accent : 'var(--subtle-card-bg)',
+                            color: num === safePage ? '#ffffff' : C.ink,
+                            cursor: 'pointer',
+                            minWidth: 32
+                          }}
+                        >
+                          {num}
+                        </button>
+                      ))}
+
+                      <button
+                        disabled={safePage === totalPages}
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 650,
+                          border: '1px solid var(--card-border)',
+                          background: 'var(--subtle-card-bg)',
+                          color: safePage === totalPages ? C.muted : C.ink,
+                          cursor: safePage === totalPages ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        Next ›
+                      </button>
+
+                      <button
+                        disabled={safePage === totalPages}
+                        onClick={() => setPage(totalPages)}
+                        style={{
+                          padding: '5px 10px',
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 650,
+                          border: '1px solid var(--card-border)',
+                          background: 'var(--subtle-card-bg)',
+                          color: safePage === totalPages ? C.muted : C.ink,
+                          cursor: safePage === totalPages ? 'not-allowed' : 'pointer'
+                        }}
+                        title="Last Page"
+                      >
+                        Last »
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             );
           })()}

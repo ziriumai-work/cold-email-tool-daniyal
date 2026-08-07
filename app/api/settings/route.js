@@ -22,9 +22,10 @@ function senderFromReq(req, body = {}) {
 export async function GET(req) {
   const sender = senderFromReq(req);
   const defaults = defaultSignature(sender);
+  const globalCalendly = await getSetting('sig_calendly', '');
   const out = {};
   for (const [apiKey, field] of FIELDS) {
-    const fallback = field === 'logo' ? (defaults.logo ? '1' : '0') : defaults[field];
+    const fallback = field === 'logo' ? (defaults.logo ? '1' : '0') : field === 'calendly' ? (defaults.calendly || globalCalendly || '') : defaults[field];
     out[apiKey] = await getSetting(signatureSettingKey(sender.key, field), fallback);
   }
   out.senderKey = sender.key;
@@ -36,12 +37,19 @@ export async function POST(req) {
     const body = await req.json();
     const sender = senderFromReq(req, body);
     for (const [apiKey, field] of FIELDS) {
-      if (apiKey in body) await setSetting(signatureSettingKey(sender.key, field), String(body[apiKey] ?? ''));
+      if (apiKey in body) {
+        const val = String(body[apiKey] ?? '').trim();
+        await setSetting(signatureSettingKey(sender.key, field), val);
+        if (field === 'calendly' && val) {
+          await setSetting('sig_calendly', val);
+        }
+      }
     }
     const defaults = defaultSignature(sender);
+    const globalCalendly = await getSetting('sig_calendly', '');
     const out = {};
     for (const [apiKey, field] of FIELDS) {
-      const fallback = field === 'logo' ? (defaults.logo ? '1' : '0') : defaults[field];
+      const fallback = field === 'logo' ? (defaults.logo ? '1' : '0') : field === 'calendly' ? (defaults.calendly || globalCalendly || '') : defaults[field];
       out[apiKey] = await getSetting(signatureSettingKey(sender.key, field), fallback);
     }
     return Response.json({ ok: true, senderKey: sender.key, ...out });

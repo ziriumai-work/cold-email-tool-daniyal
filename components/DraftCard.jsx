@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { C, US_TZS, statusColor, statusLabel, inputStyle, lbl, btn, btnSm, fmtInTz } from './constants.js';
 import { Badge } from './UIElements.jsx';
-import { CheckCircleIcon, SendIcon, ClockIcon, TrashIcon, SparklesIcon, MailIcon, ExternalLinkIcon } from './Icons.jsx';
+import { CheckCircleIcon, SendIcon, ClockIcon, TrashIcon, SparklesIcon, MailIcon, ExternalLinkIcon, SpinnerIcon } from './Icons.jsx';
 
 export function DraftCard({ d, senders, replies = [], onUpdate, onSend, onScheduleOpen, onUnschedule, sending, displayTz, onCollapse }) {
   const [subject, setSubject] = useState(d.subject || '');
@@ -236,15 +236,47 @@ export function DraftCard({ d, senders, replies = [], onUpdate, onSend, onSchedu
               Subject: {subject || '(No Subject Line)'}
             </div>
           </div>
-          {/* Email Body */}
+          {/* Email Body & Signature */}
           <div style={{ padding: 22, color: 'var(--text-primary)', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
             {body || '(Empty email body)'}
+
+            {/* Signature Block */}
+            <div style={{ marginTop: 22, paddingTop: 16, borderTop: '2px solid #41c6f1', color: C.text, fontFamily: 'Arial, sans-serif' }}>
+              <div style={{ fontWeight: 800, fontSize: 14, color: C.ink }}>{currentSender.name || 'Outreach Lead'}</div>
+              <div style={{ fontSize: 12, color: C.sub }}>Zirium AI • Custom AI Automation & Agentic Systems</div>
+              <div style={{ fontSize: 12, color: C.accent, fontWeight: 700, marginTop: 4 }}>ziriumai.com</div>
+              <div style={{ marginTop: 10 }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+                  color: '#ffffff',
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  boxShadow: '0 4px 10px rgba(2, 132, 199, 0.2)'
+                }}>
+                  📅 Schedule a Meeting (Calendly Attached at Send)
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* Action Toolbar */}
-      <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{
+        display: 'flex',
+        gap: 10,
+        marginTop: 20,
+        paddingTop: 16,
+        borderTop: '1px solid var(--card-border)',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
         {locked ? (
           <div style={{
             background: 'rgba(236, 253, 245, 0.25)',
@@ -277,52 +309,65 @@ export function DraftCard({ d, senders, replies = [], onUpdate, onSend, onSchedu
             <TrashIcon size={16} color={C.red} />
             Draft Rejected
           </div>
-        ) : scheduled ? (
-          <>
-            <button style={{ ...btn(C.green), display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={sending} onClick={() => onSend(d.id)}>
-              <SendIcon size={14} color="#fff" />
-              {sending ? 'Sending…' : 'Send Now'}
-            </button>
-            <button style={{ ...btn(statusColor.scheduled, true), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => onScheduleOpen(d)}>
-              <ClockIcon size={14} color={statusColor.scheduled} />
-              Reschedule
-            </button>
-            <button style={btn(C.amber, true)} onClick={() => onUnschedule(d.id)}>Cancel Schedule</button>
-          </>
         ) : (
           <>
-            {dirty && (
-              <button style={{ ...btn(C.accent), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => onUpdate(d.id, { subject, body, senderKey: draftSenderKey })}>
-                <SparklesIcon size={14} color="#fff" />
-                Save Changes
+            {/* Left Side: Reject Action */}
+            <div>
+              <button style={{ ...btn(C.red, true), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => onUpdate(d.id, { status: 'rejected' })}>
+                <TrashIcon size={14} color={C.red} />
+                Reject
               </button>
-            )}
-            {d.status !== 'approved' && (
-              <button style={{ ...btn(C.green), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => onUpdate(d.id, { subject, body, senderKey: draftSenderKey, status: 'approved' })}>
-                <CheckCircleIcon size={15} color="#fff" />
-                Approve Draft
-              </button>
-            )}
-            {d.status === 'approved' && (
-              <>
-                <button style={{ ...btn(C.green), display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={sending || !d.contact_email}
-                  title={!d.contact_email ? 'No contact email' : ''}
-                  onClick={() => onSend(d.id)}>
-                  <SendIcon size={15} color="#fff" />
-                  {sending ? 'Sending…' : 'Send Now'}
-                </button>
-                <button style={{ ...btn(statusColor.scheduled, true), display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={!d.contact_email}
-                  title={!d.contact_email ? 'No contact email' : ''}
-                  onClick={() => onScheduleOpen(d)}>
-                  <ClockIcon size={14} color={statusColor.scheduled} />
-                  Schedule Send
-                </button>
-              </>
-            )}
-            <button style={{ ...btn(C.red, true), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => onUpdate(d.id, { status: 'rejected' })}>
-              <TrashIcon size={14} color={C.red} />
-              Reject
-            </button>
+            </div>
+
+            {/* Right Side (Other side): Primary Action Buttons */}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginLeft: 'auto' }}>
+              {scheduled ? (
+                <>
+                  <button style={{ ...btn(C.amber, true), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => onUnschedule(d.id)}>
+                    Cancel Schedule
+                  </button>
+                  <button style={{ ...btn(statusColor.scheduled, true), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => onScheduleOpen(d)}>
+                    <ClockIcon size={14} color={statusColor.scheduled} />
+                    Reschedule
+                  </button>
+                  <button style={{ ...btn(C.green), display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={sending} onClick={() => onSend(d.id)}>
+                    {sending ? <SpinnerIcon size={14} color="#fff" /> : <SendIcon size={14} color="#fff" />}
+                    {sending ? 'Sending Email…' : 'Send Now'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {dirty && (
+                    <button style={{ ...btn(C.accent), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => onUpdate(d.id, { subject, body, senderKey: draftSenderKey })}>
+                      <SparklesIcon size={14} color="#fff" />
+                      Save Changes
+                    </button>
+                  )}
+                  {d.status !== 'approved' && (
+                    <button style={{ ...btn(C.green), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => onUpdate(d.id, { subject, body, senderKey: draftSenderKey, status: 'approved' })}>
+                      <CheckCircleIcon size={15} color="#fff" />
+                      Approve Draft
+                    </button>
+                  )}
+                  {d.status === 'approved' && (
+                    <>
+                      <button style={{ ...btn(statusColor.scheduled, true), display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={!d.contact_email}
+                        title={!d.contact_email ? 'No contact email' : ''}
+                        onClick={() => onScheduleOpen(d)}>
+                        <ClockIcon size={14} color={statusColor.scheduled} />
+                        Schedule Send
+                      </button>
+                      <button style={{ ...btn(C.green), display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={sending || !d.contact_email}
+                        title={!d.contact_email ? 'No contact email' : ''}
+                        onClick={() => onSend(d.id)}>
+                        {sending ? <SpinnerIcon size={15} color="#fff" /> : <SendIcon size={15} color="#fff" />}
+                        {sending ? 'Sending Email…' : 'Send Now'}
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
           </>
         )}
       </div>

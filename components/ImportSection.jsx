@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { C, btn } from './constants.js';
 import { Section } from './UIElements.jsx';
-import { UploadIcon, CheckCircleIcon, FileIcon } from './Icons.jsx';
+import { UploadIcon, CheckCircleIcon, FileIcon, SpinnerIcon } from './Icons.jsx';
 
 export function ImportSection({ busy, setBusy, csvInfo, setCsvInfo, flash, load }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -122,12 +122,12 @@ export function ImportSection({ busy, setBusy, csvInfo, setCsvInfo, flash, load 
             transition: 'all 0.2s ease',
             flexShrink: 0
           }}>
-            <UploadIcon size={24} color={isDragging ? '#fff' : C.accent} />
+            {busy === 'import' ? <SpinnerIcon size={24} color={C.accent} /> : <UploadIcon size={24} color={isDragging ? '#fff' : C.accent} />}
           </div>
 
           <div style={{ textAlign: 'left', flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: C.ink }}>
-              {busy === 'import' ? 'Processing file...' : isDragging ? 'Drop file to upload' : 'Drag & drop your leads file here'}
+              {busy === 'import' ? 'Extracting & Parsing leads file...' : isDragging ? 'Drop file to upload' : 'Drag & drop your leads file here'}
             </div>
             <div style={{ fontSize: 13, color: C.sub, marginTop: 3, fontWeight: 500 }}>
               Supports <strong>CSV</strong>, <strong>Excel (.xlsx / .xls)</strong>, <strong>PDF (.pdf)</strong>, or <strong>Word (.docx)</strong>
@@ -149,8 +149,8 @@ export function ImportSection({ busy, setBusy, csvInfo, setCsvInfo, flash, load 
               fontWeight: 700,
               flexShrink: 0
             }}>
-            <UploadIcon size={16} color="#fff" />
-            Browse File
+            {busy === 'import' ? <SpinnerIcon size={16} color="#fff" /> : <UploadIcon size={16} color="#fff" />}
+            {busy === 'import' ? 'Uploading…' : 'Browse File'}
           </button>
         </div>
 
@@ -171,9 +171,9 @@ export function ImportSection({ busy, setBusy, csvInfo, setCsvInfo, flash, load 
         </div>
 
         {busy === 'import' && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(224, 242, 254, 0.9)', color: '#0369a1', borderRadius: 14, fontSize: 13, fontWeight: 700, backdropFilter: 'blur(8px)', width: '100%', justifyContent: 'center' }}>
-            <span className="pulse-dot" style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#0284c7' }} />
-            {csvInfo?.fileName ? `Extracting data from ${csvInfo.fileName}…` : 'Importing leads file…'}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '12px 20px', background: 'rgba(224, 242, 254, 0.95)', color: '#0369a1', border: '1px solid rgba(186, 230, 253, 0.9)', borderRadius: 14, fontSize: 13, fontWeight: 700, backdropFilter: 'blur(10px)', width: '100%', justifyContent: 'center', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.1)' }}>
+            <SpinnerIcon size={18} color="#0284c7" />
+            <span>{csvInfo?.fileName ? `Extracting data from ${csvInfo.fileName}…` : 'Importing leads file…'}</span>
           </div>
         )}
         {busy !== 'import' && csvInfo && csvInfo.state === 'done' && (

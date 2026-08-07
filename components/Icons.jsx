@@ -263,3 +263,11 @@ export function LogOutIcon({ size = 16, color = 'currentColor', style = {} }) {
   );
 }
 
+export function SpinnerIcon({ size = 16, color = 'currentColor', style = {} }) {
+  return (
+    <svg className="spinner" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  );
+}
+

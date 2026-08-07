@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { C, overlay, modalCard, inputStyle, lbl, btn } from './constants.js';
-import { SparklesIcon, XIcon, SendIcon, CheckCircleIcon } from './Icons.jsx';
+import { SparklesIcon, XIcon, SendIcon, CheckCircleIcon, SpinnerIcon } from './Icons.jsx';
 
 export function GenModal({
   modal,
@@ -12,6 +12,7 @@ export function GenModal({
   setCustomPrompt,
   customSubject = '',
   setCustomSubject = () => {},
+  busy,
   onCancel,
   onSubmit
 }) {
@@ -117,6 +118,7 @@ export function GenModal({
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
               title="Save exact entered text as a draft without AI modification"
+              disabled={!!busy}
               style={{
                 ...btn(C.ink, true),
                 display: 'inline-flex',
@@ -135,6 +137,7 @@ export function GenModal({
 
             <button
               title="Create draft with exact entered text and send immediately"
+              disabled={!!busy}
               style={{
                 ...btn('#10b981'),
                 display: 'inline-flex',
@@ -147,12 +150,13 @@ export function GenModal({
               }}
               onClick={() => onSubmit({ mode: 'exact', autoSend: true })}
             >
-              <SendIcon size={14} color="#fff" />
-              Send Exact Email Now
+              {busy ? <SpinnerIcon size={14} color="#fff" /> : <SendIcon size={14} color="#fff" />}
+              {busy ? 'Sending…' : 'Send Exact Email Now'}
             </button>
 
             <button
               title="Generate personalized cold email using DeepSeek AI"
+              disabled={!!busy}
               style={{
                 ...btn('#7c5cff'),
                 display: 'inline-flex',
@@ -165,8 +169,8 @@ export function GenModal({
               }}
               onClick={() => onSubmit({ mode: 'ai', autoSend: false })}
             >
-              <SparklesIcon size={14} color="#fff" />
-              Generate with AI
+              {busy ? <SpinnerIcon size={14} color="#fff" /> : <SparklesIcon size={14} color="#fff" />}
+              {busy ? 'Generating…' : 'Generate with AI'}
             </button>
           </div>
         </div>
