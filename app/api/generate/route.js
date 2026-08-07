@@ -1,4 +1,4 @@
-import { get, run } from '../../../lib/db.js';
+import { get, all, run, runBulkInsert } from '../../../lib/db.js';
 import { generateDraft } from '../../../lib/generate.js';
 import { findSender } from '../../../lib/senders.js';
 
@@ -12,26 +12,77 @@ export async function GET() {
   );
 }
 
-// Generate a custom draft for one company.
-// Body: { companyId, customPrompt, senderKey }
+// Generate custom draft(s) for single company or all pending companies.
+// Body: { companyId, generateAll, customPrompt, offer, senderKey }
 export async function POST(req) {
   try {
     if (!process.env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY === 'sk-xxxxxxxx') {
       return Response.json({ error: 'DEEPSEEK_API_KEY is not set in .env.local. Please add your DeepSeek API key to .env.local.' }, { status: 400 });
     }
 
-    const { companyId, offer, customPrompt, senderKey } = await req.json();
-    if (!companyId) return Response.json({ error: 'companyId required' }, { status: 400 });
+    const { companyId, generateAll, offer, customPrompt, senderKey } = await req.json();
+    const isBatch = generateAll || companyId === 'all';
+
+    if (!isBatch && !companyId) {
+      return Response.json({ error: 'companyId required' }, { status: 400 });
+    }
 
     const promptText = (customPrompt || offer || '').trim();
     if (!promptText) {
       return Response.json({ error: 'Please write your custom email prompt first.' }, { status: 400 });
     }
 
+    const sender = findSender(senderKey);
+
+    if (isBatch) {
+      let targetCompanies = await all(`
+        SELECT c.* FROM companies c 
+        LEFT JOIN drafts d ON d.company_id = c.id AND d.status IN ('approved', 'scheduled', 'sent')
+        WHERE d.id IS NULL
+      `);
+
+      if (!targetCompanies || targetCompanies.length === 0) {
+        targetCompanies = await all('SELECT * FROM companies');
+      }
+
+      if (!targetCompanies || targetCompanies.length === 0) {
+        return Response.json({ error: 'No companies found in database. Please upload companies first.' }, { status: 400 });
+      }
+
+      // 1) Generate ONE uniform draft for all target companies
+      const result = await generateDraft({ company: null, offer: promptText, sender, mode: 'custom', customPrompt: promptText });
+
+      // 2) Clean up un-sent drafts for target companies
+      for (const comp of targetCompanies) {
+        await run("DELETE FROM drafts WHERE company_id = ? AND status IN ('pending', 'rejected', 'error')", [comp.id]);
+      }
+
+      // 3) Insert uniform draft for each company
+      const rowsToInsert = targetCompanies.map((comp) => ({
+        company_id: comp.id,
+        subject: result.subject,
+        body: result.body,
+        research_summary: result.research_summary || '(Custom email — written from your prompt.)',
+        offer: promptText,
+        status: 'pending',
+        sender_key: sender.key,
+        sender_name: sender.name,
+        sender_email: sender.email,
+      }));
+
+      await runBulkInsert('drafts', rowsToInsert);
+
+      return Response.json({
+        success: true,
+        count: targetCompanies.length,
+        subject: result.subject,
+        body: result.body,
+      });
+    }
+
+    // Single company draft generation
     const company = await get('SELECT * FROM companies WHERE id = ?', [companyId]);
     if (!company) return Response.json({ error: 'Company not found' }, { status: 404 });
-
-    const sender = findSender(senderKey);
 
     // Clean up any un-sent draft for this company before creating a fresh draft
     await run("DELETE FROM drafts WHERE company_id = ? AND status IN ('pending', 'rejected', 'error')", [company.id]);

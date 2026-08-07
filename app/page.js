@@ -196,19 +196,20 @@ export default function Dashboard() {
     if (bad) return flash(bad, false);
     const pending = companies.filter((c) => !c.draft_id);
     if (pending.length === 0) return flash('No companies without a draft.', false);
-    let ok = 0;
-    let failed = 0;
-    for (let i = 0; i < pending.length; i++) {
-      setBusy(`all-custom:Custom ${i + 1}/${pending.length}`);
-      const res = await fetch('/api/generate', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payloadFor(pending[i].id), senderKey }),
-      }).then((r) => r.json());
-      if (res.error) failed += 1;
-      else ok += 1;
-    }
+
+    setBusy('all-custom:Generating…');
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ generateAll: true, customPrompt, senderKey }),
+    }).then((r) => r.json());
     setBusy('');
-    flash(failed ? `Generated ${ok}/${pending.length} custom draft(s), ${failed} failed.` : `Generated custom drafts for ${pending.length} companies.`, !failed);
+
+    if (res.error) {
+      flash(res.error, false);
+    } else {
+      flash(`Generated uniform drafts for ${res.count || pending.length} companies.`, true);
+    }
     await load();
   }
 
