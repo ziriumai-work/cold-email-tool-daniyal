@@ -4,7 +4,7 @@ export function ToastContainer({ toasts, navVisible, removeToast }) {
   return (
     <div style={{
       position: 'fixed',
-      top: navVisible ? 84 : 20,
+      top: 24,
       transition: 'top 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
       left: '50%',
       transform: 'translateX(-50%)',

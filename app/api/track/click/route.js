@@ -15,12 +15,34 @@ export async function GET(request) {
   if (id) {
     try {
       const now = new Date().toISOString();
-      const row = await get('SELECT click_count, clicked_at FROM drafts WHERE tracking_id = ?', [id]);
-      await run(
-        'UPDATE drafts SET click_count = ?, clicked_at = COALESCE(clicked_at, ?), last_clicked_at = ? WHERE tracking_id = ?',
-        [(row?.click_count ?? 0) + 1, now, now, id]
-      );
-    } catch { /* swallow so redirect always happens */ }
+      const row = await get('SELECT id, company_id, status, replied_at, click_count, clicked_at FROM drafts WHERE tracking_id = ?', [id]);
+      if (row) {
+        const newClickCount = (row.click_count ?? 0) + 1;
+        await run(
+          'UPDATE drafts SET click_count = ?, clicked_at = COALESCE(clicked_at, ?), last_clicked_at = ? WHERE tracking_id = ?',
+          [newClickCount, now, now, id]
+        );
+
+        if (row.status !== 'replied' && !row.replied_at && row.company_id) {
+          const { dispatchCrmWebhook } = await import('../../../../lib/crm.js');
+          dispatchCrmWebhook('email.clicked_no_reply', {
+            draftId: row.id,
+            companyId: row.company_id,
+            clickCount: newClickCount,
+            clickedAt: now,
+          });
+
+          const { processSequenceStepForCompany } = await import('../../../../lib/sequences.js');
+          await processSequenceStepForCompany(
+            row.company_id,
+            { ...row, click_count: newClickCount, clicked_at: row.clicked_at || now },
+            'click'
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Error tracking email click event:', err.message);
+    }
   }
 
   const fallback = process.env.APP_BASE_URL?.trim() || '/';

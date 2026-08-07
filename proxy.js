@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 
-const PUBLIC = ['/login', '/api/login', '/api/cron'];
+const PUBLIC = ['/login', '/api/login', '/api/cron', '/api/track'];
 
 export function proxy(req) {
-  const { pathname } = req.nextUrl;
+  const { pathname, searchParams } = req.nextUrl;
   if (PUBLIC.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+    return NextResponse.next();
+  }
+
+  // Allow public email recipient unsubscribe action
+  if (pathname === '/api/compliance' && req.method === 'GET' && searchParams.get('action') === 'unsubscribe') {
     return NextResponse.next();
   }
 

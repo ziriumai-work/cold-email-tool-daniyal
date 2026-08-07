@@ -1,6 +1,6 @@
 import { C, inputStyle, lbl, btn } from './constants.js';
 import { Section } from './UIElements.jsx';
-import { UserIcon, CheckCircleIcon, ExternalLinkIcon } from './Icons.jsx';
+import { CheckCircleIcon, ExternalLinkIcon } from './Icons.jsx';
 
 export function SignatureSection({ senders, senderKey, setSenderKey, sig, setSig, sigSaved, saveSignature }) {
   const isUnsaved = JSON.stringify(sig) !== sigSaved;

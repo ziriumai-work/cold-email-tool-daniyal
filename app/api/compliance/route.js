@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSuppressionList, suppressEmail } from '../../../lib/compliance.js';
+import { getSuppressionList, suppressEmail, unsuppressEmail } from '../../../lib/compliance.js';
 
 export async function GET(request) {
   try {
@@ -43,3 +43,22 @@ export async function POST(request) {
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const email = searchParams.get('email');
+    if (!email) {
+      const body = await request.json().catch(() => ({}));
+      if (!body.email) return NextResponse.json({ ok: false, error: 'Email required' }, { status: 400 });
+      await unsuppressEmail(body.email);
+      return NextResponse.json({ ok: true, message: `Removed ${body.email} from suppression list` });
+    }
+
+    await unsuppressEmail(email);
+    return NextResponse.json({ ok: true, message: `Removed ${email} from suppression list` });
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
+  }
+}
+

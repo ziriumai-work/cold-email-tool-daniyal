@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import {
-  EnterpriseTabBar,
+  EnterpriseSidebar,
   DeliverabilityView,
   SequencesView,
   ComplianceView,
@@ -10,7 +10,8 @@ import {
   CrmView,
   SecurityAuditView,
   RevenueRoiView,
-} from '../components/EnterpriseTabs.js';
+} from '../components/EnterpriseTabs.jsx';
+import { BuildingIcon, MailIcon, SendIcon, SparklesIcon } from '../components/Icons.jsx';
 import { Header } from '../components/Header.jsx';
 import { ToastContainer } from '../components/ToastContainer.jsx';
 import { ConfirmModal } from '../components/ConfirmModal.jsx';
@@ -39,6 +40,13 @@ export default function Dashboard() {
   const [confirmModal, setConfirmModal] = useState(null); // { title, message, onConfirm, confirmText, danger }
   const [replies, setReplies] = useState([]);
   const [activeTab, setActiveTab] = useState('pipeline');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('zirium_sidebar_collapsed') === 'true' : false));
+
+  useEffect(() => {
+    localStorage.setItem('zirium_sidebar_collapsed', sidebarCollapsed ? 'true' : 'false');
+  }, [sidebarCollapsed]);
+
   const [displayTz, setDisplayTz] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('displayTz') : null) || 'Asia/Karachi');
   const [csvInfo, setCsvInfo] = useState(null);
   const [navVisible, setNavVisible] = useState(true);
@@ -380,24 +388,46 @@ export default function Dashboard() {
   const totalOpensCount = drafts.reduce((acc, d) => acc + (d.open_count || 0), 0);
 
   return (
-    <>
-      <Header
-        navVisible={navVisible}
+    <div className="app-shell">
+      <EnterpriseSidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         displayTz={displayTz}
         setDisplayTz={setDisplayTz}
-        logout={logout}
         theme={theme}
         toggleTheme={toggleTheme}
+        logout={logout}
+        mobileOpen={mobileSidebarOpen}
+        setMobileOpen={setMobileSidebarOpen}
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
       />
 
-      <main style={{ maxWidth: 1180, margin: '0 auto', padding: '110px 24px 80px' }}>
-        <ToastContainer
-          toasts={toasts}
+      <div
+        className={`sidebar-overlay ${mobileSidebarOpen ? 'open' : ''}`}
+        onClick={() => setMobileSidebarOpen(false)}
+      />
+
+      <div className={`main-area ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <Header
           navVisible={navVisible}
-          removeToast={removeToast}
+          activeTab={activeTab}
+          onToggleMobileSidebar={() => setMobileSidebarOpen((v) => !v)}
+          onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
+          sidebarCollapsed={sidebarCollapsed}
+          displayTz={displayTz}
+          setDisplayTz={setDisplayTz}
+          logout={logout}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
 
-        <EnterpriseTabBar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <main style={{ maxWidth: 1280, width: '100%', margin: '0 auto', padding: '24px 28px 80px' }}>
+          <ToastContainer
+            toasts={toasts}
+            navVisible={navVisible}
+            removeToast={removeToast}
+          />
 
         {activeTab === 'deliverability' && <DeliverabilityView flash={flash} />}
         {activeTab === 'sequences' && <SequencesView flash={flash} />}
@@ -411,92 +441,48 @@ export default function Dashboard() {
         {activeTab === 'pipeline' && (
           <>
             {/* KPI Metric Overview Bar */}
-            <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-              <div style={{
-                flex: '1 1 220px',
-                background: 'var(--card-bg)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid var(--card-border)',
-                borderRadius: 20,
-                padding: '20px 22px',
-                boxShadow: 'var(--card-shadow)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16
-              }}>
-                <div style={{ width: 46, height: 46, borderRadius: 14, background: 'rgba(2, 132, 199, 0.12)', border: '1px solid rgba(2, 132, 199, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7' }}>
-                  🏢
+            <div className="kpi-container">
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: 'rgba(2, 132, 199, 0.12)', border: '1px solid rgba(2, 132, 199, 0.25)', color: '#0284c7' }}>
+                  <BuildingIcon size={20} color="#0284c7" />
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Target Prospects</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginTop: 2 }}>{totalCompaniesCount}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, fontWeight: 550 }}>Companies in database</div>
+                  <div className="kpi-label">Target Prospects</div>
+                  <div className="kpi-value">{totalCompaniesCount}</div>
+                  <div className="kpi-subtext">Companies in database</div>
                 </div>
               </div>
 
-              <div style={{
-                flex: '1 1 220px',
-                background: 'var(--card-bg)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid var(--card-border)',
-                borderRadius: 20,
-                padding: '20px 22px',
-                boxShadow: 'var(--card-shadow)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16
-              }}>
-                <div style={{ width: 46, height: 46, borderRadius: 14, background: 'rgba(124, 92, 255, 0.12)', border: '1px solid rgba(124, 92, 255, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7c5cff' }}>
-                  ✏️
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: 'rgba(124, 92, 255, 0.12)', border: '1px solid rgba(124, 92, 255, 0.25)', color: '#7c5cff' }}>
+                  <MailIcon size={20} color="#7c5cff" />
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Drafts Queue</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginTop: 2 }}>{totalDraftsCount}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, fontWeight: 550 }}>{approvedDraftsCount} approved for send</div>
+                  <div className="kpi-label">Drafts Queue</div>
+                  <div className="kpi-value">{totalDraftsCount}</div>
+                  <div className="kpi-subtext">{approvedDraftsCount} approved for send</div>
                 </div>
               </div>
 
-              <div style={{
-                flex: '1 1 220px',
-                background: 'var(--card-bg)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid var(--card-border)',
-                borderRadius: 20,
-                padding: '20px 22px',
-                boxShadow: 'var(--card-shadow)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16
-              }}>
-                <div style={{ width: 46, height: 46, borderRadius: 14, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
-                  🚀
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', color: '#10b981' }}>
+                  <SendIcon size={20} color="#10b981" />
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sent Emails</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginTop: 2 }}>{sentEmailsCount}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, fontWeight: 550 }}>{totalOpensCount} total email opens</div>
+                  <div className="kpi-label">Sent Emails</div>
+                  <div className="kpi-value">{sentEmailsCount}</div>
+                  <div className="kpi-subtext">{totalOpensCount} total email opens</div>
                 </div>
               </div>
 
-              <div style={{
-                flex: '1 1 220px',
-                background: 'var(--card-bg)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid var(--card-border)',
-                borderRadius: 20,
-                padding: '20px 22px',
-                boxShadow: 'var(--card-shadow)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16
-              }}>
-                <div style={{ width: 46, height: 46, borderRadius: 14, background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
-                  💬
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.25)', color: '#f59e0b' }}>
+                  <SparklesIcon size={20} color="#f59e0b" />
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Prospect Replies</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginTop: 2 }}>{totalRepliesCount}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, fontWeight: 550 }}>Active conversations</div>
+                  <div className="kpi-label">Prospect Replies</div>
+                  <div className="kpi-value">{totalRepliesCount}</div>
+                  <div className="kpi-subtext">Active conversations</div>
                 </div>
               </div>
             </div>
@@ -583,7 +569,8 @@ export default function Dashboard() {
           />
         )}
       </main>
-    </>
+      </div>
+    </div>
   );
 }
 
