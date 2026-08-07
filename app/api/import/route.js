@@ -45,17 +45,17 @@ export async function POST(req) {
     const skipped = [];
     for (const r of rows) {
       const canonical = canonicalizeRow(r);
-      const name = (canonical.name || '').trim();
       const contact_email = (canonical.contact_email || '').trim().toLowerCase();
+      const name = (canonical.name || '').trim();
 
       // Email Filter Guardrail: Require a valid contact_email for every uploaded lead
-      if (!name || !contact_email || !emailRegex.test(contact_email)) {
-        skipped.push({ row: r, reason: !contact_email ? 'missing email' : !name ? 'missing name' : 'invalid email format' });
+      if (!contact_email || !emailRegex.test(contact_email)) {
+        skipped.push({ row: r, reason: !contact_email ? 'missing email' : 'invalid email format' });
         continue;
       }
 
       toInsert.push({
-        name,
+        name: name || 'Lead',
         website: (canonical.website || '').trim() || null,
         contact_email,
         phone: (canonical.phone || '').trim() || null,
